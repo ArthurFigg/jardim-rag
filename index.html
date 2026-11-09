@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O RAG vale a pena? · caderno de campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap" rel="stylesheet">
+<style>
+:root { --fundo: #f1ead9; --painel: #f1ead9; --tinta: #1d1a14; --suave: #5b5242; --linha: #cfc3a8; --cinza: #9c8f74; --grep: #22405f; --rag: #b4541a; --bom: #2f6a3d; --ruim: #a3201a; --destaque: transparent; --fonte-titulo: "Newsreader", Georgia, serif; --fonte-texto: "Newsreader", Georgia, serif; --fonte-num: "DM Mono", ui-monospace, Consolas, monospace; color-scheme: light; }
+:root[data-theme="dark"] { --fundo: #1a1712; --painel: #1a1712; --tinta: #ebe2cd; --suave: #b3a78c; --linha: #3b3529; --cinza: #6d6450; --grep: #8fb1d6; --rag: #e08a4a; --bom: #7cbf86; --ruim: #ee7d73; --destaque: transparent; color-scheme: dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fundo: #1a1712; --painel: #1a1712; --tinta: #ebe2cd; --suave: #b3a78c; --linha: #3b3529; --cinza: #6d6450; --grep: #8fb1d6; --rag: #e08a4a; --bom: #7cbf86; --ruim: #ee7d73; --destaque: transparent; color-scheme: dark; } }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body {
+  margin: 0; background: var(--fundo); color: var(--tinta);
+  font: 18px/1.65 var(--fonte-texto); -webkit-font-smoothing: antialiased;
+}
+a { color: var(--grep); }
+h1, h2, h3 { font-family: var(--fonte-titulo); text-wrap: balance; line-height: 1.12; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.7rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0 0 1rem; max-width: 66ch; }
+.num { font-family: var(--fonte-num); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 3px solid var(--rag); outline-offset: 2px; border-radius: 4px; }
+
+#progresso { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--rag); z-index: 50; }
+
+.layout { max-width: 1200px; margin: 0 auto; padding: 0 20px 80px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 56px; }
+nav.lateral { position: sticky; top: 0; align-self: start; padding: 28px 0; height: 100vh; display: flex; flex-direction: column; gap: 6px; font-family: var(--fonte-titulo); font-size: 0.95rem; }
+nav.lateral .marca { font-weight: 800; font-size: 1.05rem; margin-bottom: 14px; line-height: 1.2; }
+nav.lateral a { color: var(--suave); text-decoration: none; padding: 5px 0 5px 12px; border-left: 3px solid var(--linha); }
+nav.lateral a:hover, nav.lateral a.ativo { color: var(--tinta); border-left-color: var(--rag); }
+.botao-tema { margin-top: auto; align-self: flex-start; font: inherit; color: var(--tinta); background: transparent; border: 1px solid var(--linha); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.botao-tema:hover { border-color: var(--rag); }
+
+main section { padding: 56px 0 8px; }
+main section + section { border-top: 1px solid var(--linha); }
+.olho { font-family: var(--fonte-num); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--suave); margin-bottom: 14px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.selo { background: var(--rag); color: #1a1100; padding: 2px 10px; border-radius: 999px; font-weight: 500; }
+.lead { font-size: 1.25rem; max-width: 60ch; }
+.destaque { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--rag) 38%, transparent) 62%); }
+
+.maturidade { display: flex; gap: 0; margin: 22px 0 8px; max-width: 520px; font-family: var(--fonte-num); font-size: 0.78rem; }
+.maturidade span { flex: 1; padding: 6px 10px; border: 1px solid var(--linha); color: var(--suave); text-align: center; }
+.maturidade span + span { border-left: 0; }
+.maturidade .atual { background: var(--rag); color: #1a1100; border-color: var(--rag); font-weight: 500; }
+
+/* Fichas */
+.cenarios { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 22px; }
+.cenarios button, .abas button, .filtros button {
+  font: 600 0.9rem var(--fonte-titulo); color: var(--tinta); background: var(--painel); border: 1px solid var(--linha);
+  padding: 8px 14px; border-radius: 6px; cursor: pointer;
+}
+.cenarios button[aria-pressed="true"], .abas button[aria-selected="true"], .filtros button[aria-pressed="true"] { background: var(--tinta); color: var(--fundo); border-color: var(--tinta); }
+.fichas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.ficha { background: var(--painel); border-top: 6px solid var(--cor); padding: 18px 18px 14px; }
+.ficha h3 { color: var(--cor); }
+.ficha .sub { font-size: 0.85rem; color: var(--suave); margin: 2px 0 12px; line-height: 1.35; }
+.ficha dl { margin: 0; }
+.ficha .linha { display: grid; grid-template-columns: 1fr; gap: 0; padding: 9px 0; border-top: 1px solid var(--linha); }
+.ficha dt { font: 0.74rem var(--fonte-num); letter-spacing: 0.06em; text-transform: uppercase; color: var(--suave); }
+.ficha dd { margin: 0; font: 600 1.08rem/1.3 var(--fonte-titulo); }
+.ficha dd small { display: block; font: 400 0.82rem/1.35 var(--fonte-texto); color: var(--suave); }
+.ficha dd.num { font-family: var(--fonte-num); font-weight: 500; font-size: 1rem; }
+.ficha dd.nm { color: var(--suave); font-weight: 400; font-style: italic; }
+.f-grep { --cor: var(--grep); }
+.f-regra { --cor: var(--grep); }
+.f-regra { border-top-style: dashed; }
+.f-rag { --cor: var(--rag); }
+.nota-pe { font-size: 0.9rem; color: var(--suave); margin-top: 14px; }
+
+/* Gráficos */
+.abas { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+figure { margin: 0 0 12px; }
+.moldura { overflow-x: auto; background: var(--painel); padding: 14px 14px 6px; border: 1px solid var(--linha); }
+.moldura svg { display: block; width: 100%; min-width: 560px; height: auto; }
+figcaption { font-size: 0.92rem; color: var(--suave); padding: 10px 2px 0; max-width: 80ch; }
+.grade { stroke: var(--linha); stroke-width: 1; }
+.eixo { stroke: var(--suave); stroke-width: 1.2; }
+.t { fill: var(--tinta); font: 600 13px var(--fonte-titulo); }
+.ts { fill: var(--suave); font: 12px var(--fonte-num); }
+.v { fill: var(--tinta); font: 500 13px var(--fonte-num); }
+.b-g { fill: var(--grep); } .b-r { fill: var(--rag); } .b-bom { fill: var(--bom); } .b-ruim { fill: var(--ruim); }
+.l-g { stroke: var(--grep); } .l-r { stroke: var(--rag); }
+.p-g { fill: var(--grep); } .p-r { fill: var(--rag); }
+.linha-ser { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.marca-dado { stroke: var(--painel); stroke-width: 2; cursor: default; }
+[data-dica] { cursor: default; }
+.cresce { transform-box: fill-box; transform-origin: left center; animation: cresce 0.55s ease-out; }
+@keyframes cresce { from { transform: scaleX(0.15); opacity: 0.4; } to { transform: scaleX(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cresce { animation: none; } html { scroll-behavior: auto; } }
+.legenda { display: flex; gap: 18px; flex-wrap: wrap; font: 600 0.88rem var(--fonte-titulo); margin: 0 0 10px; }
+.legenda i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+#dica { position: fixed; z-index: 60; pointer-events: none; background: var(--tinta); color: var(--fundo); font: 0.85rem/1.35 var(--fonte-titulo); padding: 7px 10px; border-radius: 6px; max-width: 280px; display: none; }
+.dois-graficos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+.grafico-bloco { margin: 32px 0 36px; }
+.grafico-bloco h3 { margin-bottom: 4px; }
+.grafico-bloco > p { color: var(--suave); font-size: 0.98rem; }
+
+/* Duas colunas de achados */
+.achados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin: 22px 0; }
+.achados h3 { padding-bottom: 8px; border-bottom: 3px solid var(--cor); margin-bottom: 12px; }
+.achados ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.achados li { padding-left: 14px; border-left: 3px solid var(--linha); font-size: 1rem; line-height: 1.5; }
+.a-rag { --cor: var(--rag); } .a-grep { --cor: var(--grep); }
+.regra-fonte { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--painel); border: 1px dashed var(--grep); padding: 12px 16px; margin: 14px 0; }
+.regra-fonte code { font: 500 0.9rem var(--fonte-num); flex: 1; min-width: 220px; }
+.regra-fonte button { font: 600 0.9rem var(--fonte-titulo); background: var(--grep); color: #fff; border: 0; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+:root[data-theme="dark"] .regra-fonte button { color: #0e1521; }
+#copiado { font: 0.85rem var(--fonte-titulo); color: var(--bom); min-height: 1.2em; }
+
+/* Tabela */
+.ferramentas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+.ferramentas input { font: 1rem var(--fonte-titulo); padding: 8px 12px; border: 1px solid var(--linha); background: var(--painel); color: var(--tinta); border-radius: 6px; min-width: 220px; }
+.filtros { display: flex; gap: 6px; flex-wrap: wrap; }
+.filtros button { padding: 6px 11px; font-size: 0.82rem; }
+.tabela-caixa { overflow-x: auto; border: 1px solid var(--linha); background: var(--painel); }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 0.95rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+th { font: 600 0.82rem var(--fonte-titulo); letter-spacing: 0.04em; text-transform: uppercase; color: var(--suave); white-space: nowrap; }
+th button { all: unset; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; }
+th button:hover { color: var(--tinta); }
+th[aria-sort="ascending"] button::after { content: " ▲"; } th[aria-sort="descending"] button::after { content: " ▼"; }
+td.d { font: 0.85rem var(--fonte-num); color: var(--suave); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.pilula { display: inline-block; font: 500 0.7rem var(--fonte-num); border: 1px solid var(--linha); padding: 1px 8px; border-radius: 999px; margin: 0 4px 4px 0; color: var(--suave); }
+#vazio-tabela { padding: 16px; color: var(--suave); display: none; }
+
+/* Linha do tempo */
+.tempo { list-style: none; margin: 26px 0 0; padding: 0 0 0 26px; border-left: 3px solid var(--linha); display: flex; flex-direction: column; gap: 22px; }
+.tempo li { position: relative; }
+.tempo li::before { content: ""; position: absolute; left: -35px; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: var(--fundo); border: 3px solid var(--grep); }
+.tempo li.agora::before { border-color: var(--rag); background: var(--rag); }
+.tempo time { font: 500 0.78rem var(--fonte-num); color: var(--suave); letter-spacing: 0.06em; }
+.tempo h3 { margin: 2px 0 2px; }
+.tempo p { margin: 0; font-size: 0.98rem; color: var(--suave); }
+
+/* Diagrama */
+.diagrama .moldura svg { min-width: 760px; }
+.caixa { fill: var(--painel); stroke: var(--suave); stroke-width: 1.5; }
+.caixa-rag { fill: var(--painel); stroke: var(--rag); stroke-width: 3; }
+.seta { stroke: var(--suave); stroke-width: 1.8; fill: none; }
+.seta-tracejada { stroke: var(--grep); stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; }
+.ponta { fill: var(--suave); } .ponta-t { fill: var(--grep); }
+.rot { fill: var(--tinta); font: 600 14px var(--fonte-titulo); }
+.rot2 { fill: var(--suave); font: 12px var(--fonte-texto); }
+
+details { border-top: 1px solid var(--linha); padding: 10px 0; }
+details:last-of-type { border-bottom: 1px solid var(--linha); }
+summary { cursor: pointer; font: 600 1rem var(--fonte-titulo); }
+details p { margin: 8px 0 0; font-size: 0.98rem; }
+
+.citacao { border-left: 6px solid var(--rag); padding: 6px 0 6px 18px; margin: 22px 0; font: 600 1.35rem/1.35 var(--fonte-titulo); max-width: 30ch; }
+.citacao small { display: block; font: 0.8rem var(--fonte-num); color: var(--suave); margin-top: 6px; font-weight: 400; }
+.aviso { border-left: 6px solid var(--ruim); background: var(--painel); padding: 14px 18px; margin: 18px 0; }
+.aviso h3 { margin-bottom: 6px; }
+.aviso ul, .lista { margin: 6px 0 0; padding-left: 20px; }
+.estado { font: 500 0.72rem var(--fonte-num); padding: 1px 8px; border-radius: 999px; background: var(--linha); color: var(--tinta); margin-left: 6px; }
+.estado.andamento { background: var(--rag); color: #1a1100; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--linha); color: var(--suave); font-size: 0.9rem; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.lateral { position: sticky; top: 0; z-index: 40; height: auto; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 14px; padding: 10px 0; background: var(--fundo); border-bottom: 1px solid var(--linha); align-items: center; }
+  nav.lateral .marca { display: none; }
+  nav.lateral a { border-left: 0; border-bottom: 3px solid var(--linha); padding: 4px 2px; white-space: nowrap; }
+  nav.lateral a:hover, nav.lateral a.ativo { border-bottom-color: var(--rag); }
+  .botao-tema { margin: 0 0 0 auto; white-space: nowrap; }
+  .fichas, .achados { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ===== Jardim digital, no estilo do Quartz ===== */
+body { font-size: 16px; line-height: 1.6; }
+a { color: var(--grep); }
+.layout { max-width: 1480px; margin: 0 auto; padding: 0 24px 60px; display: grid; grid-template-columns: 280px minmax(0, 760px) 280px; gap: 36px; justify-content: center; }
+aside.esq, aside.dir { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 30px 0 24px; display: flex; flex-direction: column; gap: 18px; scrollbar-width: thin; }
+.titulo-site { font: 700 1.75rem/1.15 var(--fonte-titulo); letter-spacing: -0.02em; color: var(--tinta); text-decoration: none; display: block; }
+.linha-busca { display: flex; gap: 8px; align-items: stretch; }
+.busca-btn { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 400 0.95rem var(--fonte-texto); color: var(--suave); background: var(--painel); border: 1px solid var(--linha); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+.busca-btn:hover { border-color: var(--cinza); }
+kbd { font: 0.72rem var(--fonte-num); border: 1px solid var(--linha); border-radius: 4px; padding: 1px 6px; color: var(--suave); }
+.icone { font: 1.1rem/1 var(--fonte-texto); color: var(--tinta); background: var(--painel); border: 1px solid var(--linha); border-radius: 6px; padding: 0 12px; cursor: pointer; }
+.icone:hover { border-color: var(--cinza); }
+.expl-tit { font: 600 1rem var(--fonte-titulo); margin: 0 0 6px; }
+.arvore, .arvore ul { list-style: none; margin: 0; padding: 0; }
+.arvore ul { padding-left: 14px; border-left: 1px solid var(--linha); margin-left: 6px; }
+.pasta-btn { all: unset; cursor: pointer; display: flex; align-items: center; gap: 6px; font: 600 0.95rem var(--fonte-titulo); padding: 4px 0; width: 100%; color: var(--tinta); }
+.pasta-btn .seta { display: inline-block; transition: transform .15s; font-size: 0.7rem; color: var(--suave); }
+.pasta-btn[aria-expanded="true"] .seta { transform: rotate(90deg); }
+.pasta-btn[aria-expanded="false"] + ul { display: none; }
+.arvore a { display: block; padding: 3px 0 3px 4px; color: var(--suave); text-decoration: none; font-size: 0.95rem; }
+.arvore a:hover { color: var(--grep); }
+.arvore a.ativo { color: var(--grep); font-weight: 600; }
+.painel-lat { border: 1px solid var(--linha); border-radius: 8px; padding: 12px 14px; background: var(--painel); }
+.painel-lat h3 { font: 600 0.95rem var(--fonte-titulo); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
+#graf-jardim { display: block; width: 100%; height: auto; background: var(--fundo); border-radius: 6px; }
+#graf-jardim line { stroke: var(--cinza); stroke-width: 1; opacity: 0.7; }
+#graf-jardim line.forte { stroke: var(--grep); opacity: 1; }
+#graf-jardim circle { cursor: pointer; fill: var(--cinza); stroke: var(--fundo); stroke-width: 1.5; }
+#graf-jardim circle.visitado { fill: var(--rag); }
+#graf-jardim circle.atual { fill: var(--grep); }
+#graf-jardim text { font: 11px var(--fonte-texto); fill: var(--tinta); pointer-events: none; }
+#toc, #back, .veja ul { list-style: none; margin: 0; padding: 0; }
+#toc li a { display: block; padding: 3px 0 3px 10px; border-left: 2px solid var(--linha); color: var(--suave); text-decoration: none; font-size: 0.92rem; }
+#toc li a:hover, #toc li a.ativo { color: var(--grep); border-left-color: var(--grep); }
+#back li a { display: block; padding: 3px 0; color: var(--grep); text-decoration: none; font-size: 0.95rem; }
+#back li a:hover { text-decoration: underline; }
+.vazio-pl { color: var(--suave); font-size: 0.9rem; }
+
+main section { padding: 34px 0 8px; border-top: 0 !important; display: none; }
+main section.ativa { display: block; }
+main section > .olho { display: none; }
+main section > h1, main section > h2:first-of-type { font: 700 2.4rem/1.12 var(--fonte-titulo); letter-spacing: -0.025em; margin: 0 0 8px; }
+main section > h2::before { content: none; }
+h2 { font: 600 1.7rem/1.2 var(--fonte-titulo); letter-spacing: -0.015em; }
+h3 { font: 600 1.25rem/1.3 var(--fonte-titulo); letter-spacing: -0.01em; }
+.grafico-bloco h3 { position: relative; }
+.grafico-bloco h3 .ancora, .achados h3 .ancora { opacity: 0; margin-left: 8px; color: var(--grep); text-decoration: none; font-weight: 400; }
+.grafico-bloco h3:hover .ancora, .achados h3:hover .ancora { opacity: 1; }
+.migalha { font: 0.88rem var(--fonte-texto); color: var(--suave); margin-bottom: 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+.migalha a { color: var(--suave); text-decoration: none; } .migalha a:hover { color: var(--grep); }
+.cab-meta { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font: 0.9rem var(--fonte-texto); color: var(--suave); margin-bottom: 8px; }
+.estagio { display: inline-flex; gap: 4px; align-items: center; border: 1px solid var(--linha); border-radius: 999px; padding: 0 10px; background: var(--painel); font-weight: 600; color: var(--tinta); }
+.etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
+.etiquetas a { font: 0.82rem var(--fonte-texto); color: var(--grep); background: var(--destaque); border-radius: 5px; padding: 1px 8px; text-decoration: none; }
+a.wiki { color: var(--grep); background: var(--destaque); border-radius: 5px; padding: 0 0.15rem; text-decoration: none; font-weight: 600; cursor: pointer; }
+a.wiki:hover { background: color-mix(in srgb, var(--grep) 22%, transparent); }
+.lead { font-size: 1.1rem; }
+.destaque { background: var(--destaque); border-radius: 4px; padding: 0 3px; }
+.callout { border-radius: 6px; padding: 12px 16px; margin: 18px 0; background: color-mix(in srgb, var(--grep) 9%, var(--fundo)); border: 1px solid color-mix(in srgb, var(--grep) 25%, transparent); }
+.callout-tit { font: 600 1rem var(--fonte-titulo); color: var(--grep); margin-bottom: 4px; }
+.callout p { margin: 0; font-size: 0.97rem; max-width: none; }
+.aviso { border: 1px solid color-mix(in srgb, var(--ruim) 30%, transparent); border-left: 1px solid color-mix(in srgb, var(--ruim) 30%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--ruim) 8%, var(--fundo)); }
+.aviso h3 { color: var(--ruim); font-size: 1.05rem; }
+.aviso h3::before { content: "\26A0  "; }
+.moldura, .tabela-caixa, .ficha, .regra-fonte { border-radius: 8px; }
+.ficha { border-top: 4px solid var(--cor); border: 1px solid var(--linha); border-top: 4px solid var(--cor); }
+.fichas { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 14px; }
+.achados { gap: 22px; }
+.cenarios button, .abas button, .filtros button { border-radius: 6px; font-family: var(--fonte-texto); font-weight: 600; }
+.cenarios button[aria-pressed="true"], .abas button[aria-selected="true"], .filtros button[aria-pressed="true"] { background: var(--grep); border-color: var(--grep); color: #fff; }
+:root[data-theme="dark"] .cenarios button[aria-pressed="true"], :root[data-theme="dark"] .abas button[aria-selected="true"], :root[data-theme="dark"] .filtros button[aria-pressed="true"] { color: #161618; }
+.maturidade { display: none; }
+.selo { display: none; }
+.regra-fonte button { border-radius: 6px; background: var(--grep); }
+.citacao { border-left: 3px solid var(--grep); font: 400 1.3rem/1.45 var(--fonte-texto); font-style: italic; max-width: 40ch; }
+.tempo { border-left: 2px solid var(--linha); }
+.tempo li::before { border-color: var(--grep); }
+.tempo li.agora::before { background: var(--rag); border-color: var(--rag); }
+th { font-family: var(--fonte-titulo); text-transform: none; letter-spacing: 0; font-size: 0.92rem; color: var(--tinta); border-bottom: 1px solid var(--cinza); }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--tinta) 3%, transparent); }
+.veja { margin: 40px 0 10px; padding-top: 16px; border-top: 1px solid var(--linha); }
+.veja h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.veja li { padding: 3px 0; font-size: 0.97rem; color: var(--suave); }
+.rodape { margin: 34px 0 0; padding-top: 14px; border-top: 1px solid var(--linha); color: var(--suave); font-size: 0.88rem; }
+
+#pop { position: fixed; z-index: 80; width: 340px; max-height: 260px; overflow: hidden; background: var(--painel); border: 1px solid var(--linha); border-radius: 8px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.18); display: none; pointer-events: none; }
+#pop h4 { font: 600 1rem var(--fonte-titulo); margin: 0 0 4px; }
+#pop .estagio { font-size: 0.78rem; margin-bottom: 6px; }
+#pop p { margin: 0; font-size: 0.9rem; color: var(--suave); }
+#pop::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(transparent, var(--painel)); }
+#modal-busca { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.35); display: none; justify-content: center; padding-top: 12vh; }
+#modal-busca.aberto { display: flex; }
+.caixa-busca { width: min(640px, 92vw); max-height: 70vh; background: var(--fundo); border: 1px solid var(--linha); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.caixa-busca input { font: 1.1rem var(--fonte-texto); padding: 10px 12px; border: 1px solid var(--linha); border-radius: 6px; background: var(--painel); color: var(--tinta); }
+.caixa-busca ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.caixa-busca li { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.caixa-busca li.sel, .caixa-busca li:hover { background: var(--destaque); }
+.caixa-busca li b { font-family: var(--fonte-titulo); display: block; }
+.caixa-busca li span { font-size: 0.88rem; color: var(--suave); }
+.caixa-busca mark { background: color-mix(in srgb, var(--rag) 35%, transparent); color: inherit; border-radius: 2px; }
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 16px 50px; }
+  aside.esq, aside.dir { position: static; height: auto; overflow: visible; padding: 18px 0; }
+  aside.dir { border-top: 1px solid var(--linha); margin-top: 20px; }
+  main section > h1, main section > h2:first-of-type { font-size: 1.9rem; }
+}
+
+.mat { display: inline-flex; gap: 3px; margin-right: 8px; vertical-align: middle; }
+.mat i { display: inline-block; width: 7px; height: 7px; border: 1px solid currentColor; }
+.mat[data-n="1"] i:nth-child(1), .mat[data-n="2"] i:nth-child(-n+2), .mat[data-n="3"] i { background: currentColor; }
+#arvore { counter-reset: n; }
+.arvore a { counter-increment: n; }
+
+/* Caderno de campo: papel, margem vermelha, tinta, mono só para etiquetas. */
+body { font-size: 18.5px; line-height: 1.62; font-optical-sizing: auto; }
+.layout { grid-template-columns: 230px minmax(0, 700px) 240px; gap: 44px; }
+.titulo-site { font: italic 500 1.7rem/1.1 var(--fonte-titulo); letter-spacing: -0.01em; }
+.busca-btn { border: 0; border-bottom: 1px solid var(--cinza); border-radius: 0; background: none; padding: 6px 0; font: 0.8rem var(--fonte-num); }
+kbd { border: 0; padding: 0; font-family: var(--fonte-num); }
+.icone { border: 0; background: none; border-bottom: 1px solid var(--cinza); border-radius: 0; padding: 0 2px; font: 0.8rem var(--fonte-num); }
+.expl-tit, .painel-lat h3 { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.12em; color: var(--suave); }
+.pasta-btn { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.1em; color: var(--tinta); }
+.pasta-btn .seta { font-size: 0.55rem; }
+.arvore ul { border-left: 1px solid var(--linha); }
+.arvore a { font-size: 1rem; color: var(--suave); display: flex; gap: 10px; align-items: baseline; }
+.arvore a::before { content: counter(n, decimal-leading-zero); font: 0.7rem var(--fonte-num); color: var(--cinza); }
+.arvore a.ativo { color: var(--rag); font-weight: 600; font-style: italic; }
+.painel-lat { border: 0; border-top: 1px solid var(--tinta); border-radius: 0; background: none; padding: 10px 0 0; }
+#graf-jardim { background: none; }
+#graf-jardim line { stroke: var(--cinza); stroke-width: 0.8; opacity: 1; }
+#graf-jardim line.forte { stroke: var(--tinta); stroke-width: 1.2; }
+#graf-jardim circle { fill: var(--fundo); stroke: var(--tinta); stroke-width: 1.2; }
+#graf-jardim circle.visitado { fill: var(--cinza); }
+#graf-jardim circle.atual { fill: var(--rag); stroke: var(--rag); }
+#graf-jardim text { font: 0.62rem var(--fonte-num); }
+#toc li a { border-left: 1px solid var(--linha); font-size: 0.95rem; }
+#toc li a:hover { border-left-color: var(--rag); color: var(--rag); }
+#back li a { color: var(--tinta); text-decoration: underline dotted; text-underline-offset: 3px; }
+main { border-left: 1px solid color-mix(in srgb, var(--rag) 55%, transparent); padding-left: 40px; }
+main section > h1, main section > h2:first-of-type { font: italic 500 2.9rem/1.05 var(--fonte-titulo); letter-spacing: -0.02em; margin-bottom: 14px; }
+h2 { font: italic 500 1.9rem/1.15 var(--fonte-titulo); }
+h3 { font: 600 1.25rem/1.3 var(--fonte-titulo); }
+.migalha, .cab-meta { font: 0.74rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.1em; color: var(--suave); }
+.cab-meta { gap: 18px; }
+.estagio { border: 0; background: none; padding: 0; border-radius: 0; font: 500 0.74rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.1em; color: var(--rag); }
+.etiquetas { gap: 0; margin-bottom: 26px; }
+.etiquetas a { background: none; border-radius: 0; padding: 0; font: 0.8rem var(--fonte-num); color: var(--suave); }
+.etiquetas a + a::before { content: "/"; color: var(--cinza); margin: 0 0.5em; }
+a.wiki { background: none; border-radius: 0; padding: 0; color: inherit; font-weight: inherit; border-bottom: 1px dashed var(--rag); }
+a.wiki:hover { background: none; color: var(--rag); }
+.destaque { background: none; border-bottom: 2px solid var(--rag); padding: 0; border-radius: 0; }
+.lead { font-size: 1.2rem; }
+.callout { border: 0; border-left: 2px solid var(--rag); border-radius: 0; background: none; padding: 2px 0 2px 18px; }
+.callout-tit { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.12em; color: var(--rag); }
+.aviso { border: 0; border-left: 2px solid var(--ruim); border-radius: 0; background: none; padding: 2px 0 2px 18px; }
+.aviso h3 { color: var(--ruim); font-style: italic; } .aviso h3::before { content: none; }
+.moldura, .tabela-caixa { border: 0; border-top: 1px solid var(--tinta); border-bottom: 1px solid var(--tinta); border-radius: 0; background: none; padding: 14px 0 6px; }
+.moldura rect, .moldura circle { rx: 0; }
+.ficha { border: 0; border-left: 1px solid var(--linha); border-radius: 0; background: none; padding: 0 0 0 16px; }
+.fichas { gap: 6px 22px; }
+.ficha h3 { color: var(--cor); font-style: italic; font-size: 1.35rem; }
+.ficha dt { font-family: var(--fonte-num); }
+.ficha dd { font-family: var(--fonte-texto); font-size: 1.1rem; font-weight: 600; }
+.ficha .linha { border-top: 1px dotted var(--cinza); }
+.cenarios button, .abas button, .filtros button { border: 0; border-bottom: 1px solid transparent; border-radius: 0; background: none; padding: 2px 0; margin-right: 18px; color: var(--suave); font: 0.8rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.06em; }
+.cenarios button[aria-pressed="true"], .abas button[aria-selected="true"], .filtros button[aria-pressed="true"] { background: none; color: var(--tinta); border-bottom-color: var(--rag); }
+:root[data-theme="dark"] .cenarios button[aria-pressed="true"], :root[data-theme="dark"] .abas button[aria-selected="true"], :root[data-theme="dark"] .filtros button[aria-pressed="true"] { color: var(--tinta); background: none; }
+.ferramentas input { border: 0; border-bottom: 1px solid var(--tinta); border-radius: 0; background: none; font-family: var(--fonte-texto); }
+.regra-fonte { border: 0; border-left: 2px solid var(--grep); border-radius: 0; background: none; }
+.regra-fonte button { background: none; color: var(--grep); border: 0; border-bottom: 1px solid var(--grep); border-radius: 0; padding: 0; font: 0.8rem var(--fonte-num); }
+.citacao { border: 0; font: italic 400 1.7rem/1.35 var(--fonte-titulo); max-width: 28ch; color: var(--tinta); }
+.citacao::before { content: "\201C"; color: var(--rag); margin-right: 4px; }
+.tempo { border-left: 1px solid var(--tinta); }
+.tempo li::before { border-radius: 0; border: 1px solid var(--tinta); background: var(--fundo); width: 9px; height: 9px; left: -31px; }
+.tempo li.agora::before { background: var(--rag); border-color: var(--rag); }
+.tempo time { font-family: var(--fonte-num); }
+th { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); border-bottom: 1px solid var(--tinta); }
+tbody tr:nth-child(even) td { background: none; }
+td { border-bottom: 1px dotted var(--cinza); }
+.pilula { border: 0; border-radius: 0; padding: 0 6px 0 0; font-family: var(--fonte-num); }
+.veja { border-top: 1px solid var(--tinta); }
+.veja h3 { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.12em; color: var(--suave); }
+#pop { border: 1px solid var(--tinta); border-radius: 0; box-shadow: 4px 4px 0 var(--linha); }
+.caixa-busca { border-radius: 0; border: 1px solid var(--tinta); box-shadow: 6px 6px 0 var(--linha); }
+.caixa-busca input { border-radius: 0; border: 0; border-bottom: 1px solid var(--tinta); background: none; }
+.caixa-busca li { border-radius: 0; } .caixa-busca li.sel, .caixa-busca li:hover { background: color-mix(in srgb, var(--rag) 12%, transparent); }
+.mat i { border-radius: 50%; }
+@media (max-width: 1180px) { main { border-left: 0; padding-left: 0; } }
+
+main section.nota > h1, main section.nota > h2:first-of-type { font-size: clamp(1.75rem, 3vw, 2.3rem); line-height: 1.14; max-width: 24em; }
+.status { font: 0.8rem/1.5 var(--fonte-num); color: var(--suave); border-left: 2px solid var(--cinza); padding: 2px 0 2px 12px; margin: 0 0 20px; max-width: 62ch; }
+.status b { text-transform: uppercase; letter-spacing: 0.1em; color: var(--rag); font-weight: 500; margin-right: 6px; }
+.ctx { color: var(--suave); }
+pre { white-space: pre-wrap; word-break: break-word; font: 0.8rem/1.55 var(--fonte-num); border-left: 2px solid var(--cinza); padding: 4px 0 4px 14px; margin: 10px 0 14px; color: var(--tinta); }
+#metodo > h3, #conclusao > h3, #feito-a-mao > h3 { margin-top: 30px; }
+#metodo > h3 .ancora, #conclusao > h3 .ancora, #feito-a-mao > h3 .ancora { opacity: 0; margin-left: 8px; color: var(--grep); text-decoration: none; font-weight: 400; }
+#metodo > h3:hover .ancora, #conclusao > h3:hover .ancora, #feito-a-mao > h3:hover .ancora { opacity: 1; }
+.pergunta { font-size: 1.12rem; font-style: italic; margin: 0 0 12px; }
+.pergunta b { font: 500 0.72rem var(--fonte-num); font-style: normal; text-transform: uppercase; letter-spacing: 0.1em; color: var(--rag); margin-right: 10px; }
+#graf-jardim text { font-size: 0.78rem; }
+.b-antes { fill: var(--rag); opacity: 0.4; }
+.b-hoje { fill: var(--rag); }
+.b-bib { fill: var(--cinza); }
+.tab-simples, .tab-metodo { min-width: 0; }
+.tab-simples th, .tab-simples td, .tab-metodo th, .tab-metodo td { vertical-align: top; }
+
+.expl-toggle { display: none; }
+@media (hover: none) { #pop { display: none !important; } }
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; padding: 0 20px 48px !important; max-width: 780px; margin: 0 auto; border: 0 !important; }
+  aside.esq, aside.dir { position: static !important; height: auto !important; overflow: visible !important; border: 0 !important; padding: 18px 0 !important; }
+  aside.esq { gap: 12px; border-bottom: 1px solid var(--linha) !important; }
+  aside.dir { margin-top: 28px; border-top: 1px solid var(--linha) !important; gap: 22px; }
+  main { padding: 0 !important; border: 0 !important; }
+  .titulo-site { font-size: 1.25rem; }
+  .titulo-site br { display: none; }
+  .linha-busca { display: flex; gap: 8px; }
+  .linha-busca .busca-btn { flex: 1; min-height: 44px; }
+  .linha-busca .icone, .linha-busca .expl-toggle { min-height: 44px; padding: 0 14px; }
+  .expl-toggle { display: inline-flex; align-items: center; gap: 6px; font: inherit; color: var(--tinta); background: var(--painel); border: 1px solid var(--tinta); cursor: pointer; }
+  .expl-toggle::after { content: "▾"; font-size: 0.8em; }
+  .expl-toggle[aria-expanded="true"]::after { content: "▴"; }
+  .explorador { display: none; }
+  .explorador.aberto { display: block; border-top: 1px solid var(--linha); padding-top: 10px; }
+  .arvore a { padding-top: 9px !important; padding-bottom: 9px !important; }
+  .pasta-btn { padding: 9px 0; }
+  kbd { display: none; }
+  main section { padding-top: 22px; }
+  .ficha { padding-left: 14px; }
+}
+@media (max-width: 700px) {
+  body { font-size: 17px; }
+  main section > h1, main section > h2:first-of-type { font-size: 2.05rem !important; line-height: 1.1; }
+  h2 { font-size: 1.55rem; }
+  .cab-meta { flex-wrap: wrap; gap: 4px 14px !important; }
+  .citacao { font-size: 1.35rem !important; margin-left: 0 !important; padding-left: 0; max-width: none; }
+  .citacao::before { position: static !important; display: inline; font-size: 1.6rem !important; margin-right: 4px; }
+  .achados, .fichas { grid-template-columns: minmax(0, 1fr) !important; }
+  .cenarios button, .abas button, .filtros button { padding-top: 7px !important; padding-bottom: 7px !important; }
+  .caixa-busca { width: 94vw; }
+  #modal-busca { padding-top: 6vh; }
+}
+@media (max-width: 700px) {
+  .moldura svg { min-width: 0 !important; }
+  .diagrama .moldura svg { min-width: 760px !important; }
+  .diagrama .moldura::before { content: "arraste o diagrama para o lado"; display: block; position: static; font: 0.74rem var(--fonte-texto); color: var(--suave); padding: 0 0 6px; }
+  .moldura .t { font-size: 11.5px !important; }
+  .moldura .ts { font-size: 11px !important; }
+  .moldura .v { font-size: 12px !important; }
+  .diagrama .moldura .rot { font-size: 14px !important; }
+  .moldura { padding-left: 8px; padding-right: 8px; }
+}
+.estado { background: none !important; border: 1px solid var(--cinza); border-radius: 0 !important; padding: 0 6px !important; margin-left: 8px; display: inline-block; white-space: nowrap; font: 0.7rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.06em; color: var(--suave) !important; vertical-align: 2px; }
+.estado.andamento { color: var(--rag) !important; border-color: var(--rag); }
+@media (max-width: 700px) {
+  #tabela .tabela-caixa { overflow-x: visible; border-left: 0 !important; border-right: 0 !important; }
+  #tabela table, #tabela tbody { display: block; min-width: 0 !important; width: 100%; }
+  #tabela thead { display: none; }
+  #tabela tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "n d" "r r" "t t"; gap: 3px 12px; padding: 12px 0; border-bottom: 1px solid var(--linha); }
+  #tabela td { display: block; border: 0 !important; padding: 0 !important; background: none !important; }
+  #tabela td:nth-child(1) { grid-area: n; font-size: 1.02rem; }
+  #tabela td:nth-child(2) { grid-area: d; white-space: nowrap; }
+  #tabela td:nth-child(3) { grid-area: r; font-size: 0.95rem; color: var(--suave); }
+  #tabela td:nth-child(4) { grid-area: t; }
+  .tab-simples, .tab-simples tbody, .tab-metodo, .tab-metodo tbody { display: block; min-width: 0 !important; width: 100%; }
+  .tab-simples thead, .tab-metodo thead { display: none; }
+  .tab-simples tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "a c" "b b"; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+  .tab-simples td, .tab-metodo td { display: block; border: 0 !important; padding: 0 !important; background: none !important; }
+  .tab-simples td:nth-child(1) { grid-area: a; font-weight: 600; }
+  .tab-simples td:nth-child(2) { grid-area: b; color: var(--suave); }
+  .tab-simples td:nth-child(3) { grid-area: c; white-space: nowrap; }
+  .tab-metodo tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--linha); }
+  .tab-metodo td { padding: 2px 0 !important; }
+  .tab-metodo td:first-child { font-weight: 600; }
+  .tab-comp td[data-rot]::before { content: attr(data-rot) ": "; font-weight: 600; color: var(--tinta); }
+  .tab-metodo td:nth-child(3) { color: var(--suave); font-size: 0.95rem; }
+}
+
+.termos { border-left: 2px solid var(--cinza); padding: 4px 0 4px 14px; margin: 0 0 22px; font-size: 0.92rem; }
+.termos-tit, .termos summary { font: 500 0.72rem var(--fonte-num); text-transform: uppercase; letter-spacing: 0.1em; color: var(--suave); margin: 0 0 6px; cursor: default; }
+.termos summary { cursor: pointer; margin: 0; }
+.termos dl { margin: 6px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; }
+.termos dt { font-weight: 600; }
+.termos dd { margin: 0; color: var(--suave); }
+.indice li { padding: 2px 0; }
+#inicio .veja { display: none; }
+ul.lista + p, ol.lista + p, ul.lista + h3, ol.lista + h3 { margin-top: 18px; }
+#inicio > h3 { margin-top: 28px; }
+#graf-jardim text { paint-order: stroke; stroke: var(--fundo); stroke-width: 3px; stroke-linejoin: round; }
+.tab-simples td[data-rot]::before { content: attr(data-rot) ": "; font-weight: 600; color: var(--tinta); }
+@media (min-width: 701px) { .tab-simples td[data-rot]::before { content: none; } }
+@media (max-width: 700px) { .tab-simples tr { grid-template-columns: minmax(0, 1fr) !important; grid-template-areas: "a" "b" "c" !important; } .tab-simples td:nth-child(3) { white-space: normal !important; } }
+.estagio-mini { font: 0.7rem var(--fonte-num); color: var(--suave); white-space: nowrap; }
+@media (max-width: 700px) { .termos dl { grid-template-columns: minmax(0, 1fr); gap: 0; } .termos dt { margin-top: 8px; } }
+</style>
+</head>
+<body>
+<div id="progresso"></div>
+<div id="dica" role="status"></div>
+<div class="layout">
+  <aside class="esq" aria-label="Navegação">
+    <a class="titulo-site" href="#topo">O RAG <br>vale a pena?</a>
+    <div class="linha-busca">
+      <button class="busca-btn" id="abrir-busca" type="button"><span>Buscar</span><kbd>Ctrl K</kbd></button>
+      <button class="icone" id="tema" type="button" aria-label="Alternar claro e escuro" title="Claro / escuro">Tema</button>
+      <button class="expl-toggle" id="expl-toggle" type="button" aria-expanded="false" aria-controls="explorador">Notas</button>
+    </div>
+    <div class="explorador" id="explorador">
+      <h3 class="expl-tit">Explorador</h3>
+      <ul class="arvore" id="arvore"></ul>
+    </div>
+  </aside>
+
+  <main>
+    <section id="inicio">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (2)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd></dl></details>
+      <p>Este jardim gira em torno de uma pergunta: quando uma IA responde perguntas sobre uma pasta de notas, vale montar um sistema de busca com índice (um RAG) ou basta a busca por palavras que ela já tem (o Grep)?</p>
+      <p>Mandei o Claude testar isso nas minhas notas de um RPG de mesa. Aqui estão as respostas que tirei, os números que as sustentam e um roteiro para você conferir no seu caso. Cada resposta é uma nota, e o selo mostra o quanto ela já está provada.</p>
+
+      <h3>Se você tem 1 minuto</h3>
+      <p>Leia <a class="wiki" data-nota="topo" href="#topo">a resposta curta</a>.</p>
+
+      <h3>As respostas</h3>
+      <ul class="lista indice">
+        <li><a class="wiki" data-nota="topo" href="#topo">O RAG empata no acerto e gasta menos cota em conversa; em pergunta solta, gasta mais</a></li>
+        <li><a class="wiki" data-nota="fonte" href="#fonte">Sem pedir, o RAG cita a fonte e o Grep só cita com uma regra</a></li>
+        <li><a class="wiki" data-nota="cota" href="#cota">Nas conversas o RAG gastou menos cota (de 6% a 36% menos); nas perguntas soltas, mais (de 33% a 66%)</a></li>
+        <li><a class="wiki" data-nota="escala" href="#escala">Até 400 mil tokens o Grep aguentou a base crescer</a></li>
+        <li><a class="wiki" data-nota="quando-compensa" href="#quando-compensa">Eu montaria um RAG em quatro casos</a></li>
+        <li><a class="wiki" data-nota="medir-no-seu-caso" href="#medir-no-seu-caso">Dá para medir no seu caso com as suas próprias perguntas</a></li>
+      </ul>
+
+      <h3>Como eu sei</h3>
+      <ul class="lista indice">
+        <li><a class="wiki" data-nota="acerto" href="#acerto">Grep e RAG acertam quase o mesmo, mas erram em lugares diferentes</a></li>
+        <li><a class="wiki" data-nota="mao-contra-biblioteca" href="#mao-contra-biblioteca">A busca feita à mão achou mais notas que a biblioteca pronta em 2 de 3 tipos de pergunta</a></li>
+        <li><a class="wiki" data-nota="metodo" href="#metodo">Quem respondeu, quem julgou e com qual versão</a></li>
+        <li><a class="wiki" data-nota="tabela" href="#tabela">Dezesseis testes em três dias sustentam estes números</a></li>
+      </ul>
+
+      <h3>Como foi feito</h3>
+      <ul class="lista indice">
+        <li><a class="wiki" data-nota="feito-a-mao" href="#feito-a-mao">Mandei o Claude escrever o RAG à mão para eu aprender a técnica</a></li>
+        <li><a class="wiki" data-nota="como" href="#como">O RAG busca por palavra e por sentido e junta as duas por posição</a></li>
+        <li><a class="wiki" data-nota="linha" href="#linha">Em três dias vieram a prova, o RAG à mão, os ajustes e as conversas repetidas</a></li>
+      </ul>
+
+      <h3>O que ainda não sei</h3>
+      <ul class="lista indice">
+        <li><a class="wiki" data-nota="conclusao" href="#conclusao">Conclusão provisória: em conversa o RAG economiza cota sem perder acerto; em pergunta solta não compensa</a></li>
+      </ul>
+    </section>
+
+    <section id="quando-compensa">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (8)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>busca por palavra (BM25)</dt><dd>Procura as palavras da pergunta nas notas e dá mais peso às palavras raras.</dd><dt>regra fixa</dt><dd>Uma linha permanente que manda a IA dizer de qual nota veio cada informação.</dd></dl></details>
+      <p>Estes são os quatro casos em que eu pensaria em montar um RAG. O primeiro mandei medir, em um cenário só; os outros três são hipóteses.</p>
+      <ul class="lista">
+        <li><strong>Você conversa muito com a IA sobre as mesmas notas.</strong> Mandei medir isso na conversa da missão do meu RPG: repetida 3 vezes por jeito, o RAG gastou 36% menos cota que o Grep, e 40% menos com 4 pedaços, com o mesmo acerto (<a class="wiki" data-nota="cota" href="#cota">cota</a>). Nas perguntas soltas aconteceu o contrário: gastou de 33% a 66% mais.</li>
+        <li><strong>A IA que você usa não tem ferramenta de busca nas notas.</strong> Sem o Grep, o RAG deixa de ser um extra e passa a ser o único jeito de a IA procurar.</li>
+        <li><strong>A base chega a milhões de tokens.</strong> Mandei medir até 400 mil, que é 6 vezes o meu vault: o Grep manteve o acerto, o gasto e o tempo (<a class="wiki" data-nota="escala" href="#escala">base maior</a>). Acima disso eu não sei.</li>
+        <li><strong>As suas perguntas usam palavras que não estão nas notas.</strong> A busca feita à mão, que junta palavra e sentido, achou 79 de cada 100 notas nessas perguntas, contra 36 da busca por palavra sozinha (<a class="wiki" data-nota="busca-sozinha" href="#busca-sozinha">busca sozinha</a>). Mas na resposta final o Grep acertou 15 a 16 de 18 e o RAG, 16 de 18 (<a class="wiki" data-nota="acerto" href="#acerto">acerto</a>).</li>
+      </ul>
+      <p>Fora desses quatro casos, o que mandei medir diz o contrário: em perguntas avulsas, em 72 notas, com a IA tendo busca, o Grep com a regra fixa de fonte deu o mesmo acerto com menos cota e menos tempo. Se você não tem certeza em qual caso está, <a class="wiki" data-nota="medir-no-seu-caso" href="#medir-no-seu-caso">dá para medir</a>.</p>
+    </section>
+
+    <section id="medir-no-seu-caso">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (9)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>Claude e Claude Code</dt><dd>O Claude é a IA que responde. O Claude Code é o programa em que ele trabalha com os meus arquivos.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd><dt>“já tem algo sobre X?”</dt><dd>Pergunta em que eu quero saber se um personagem ou uma missão já existe nas notas.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd><dt>skill</dt><dd>Um roteiro que o Claude Code segue quando eu o chamo, como /rag.</dd></dl></details>
+      <p>Este é o roteiro que eu segui, e que automatizei na skill /rag. Ele compara as opções com as suas perguntas e mostra os números para você escolher.</p>
+      <ol class="lista">
+        <li><strong>Descubra o tamanho da base.</strong> Conte os tokens (o número de caracteres dividido por 4 dá uma estimativa). Se a base tem menos de 200 mil tokens, ela cabe inteira no pedido, e colar tudo também entra na comparação.</li>
+        <li><strong>Escreva de 10 a 18 perguntas no seu jeito de perguntar</strong>: curtas e soltas. Misture perguntas diretas, perguntas sem nenhuma palavra da nota, “já tem algo sobre X?” (inclusive de coisa que não existe) e perguntas que ligam várias notas. Escreva antes qual é a nota certa de cada uma.</li>
+        <li><strong>Monte as opções:</strong> só o Grep; o Grep com uma linha pedindo a fonte; o RAG; e colar tudo, se couber.</li>
+        <li><strong>Faça as mesmas perguntas a cada opção, sem ela ver a nota certa</strong> (uma cópia do Claude por opção). Anote os acertos, os tokens, o tempo e quantas buscas cada uma fez.</li>
+        <li><strong>Teste também uma base maior</strong>, com o dobro e 6 vezes o tamanho, se puder. A vantagem do RAG em base grande não é óbvia: no meu caso não apareceu até 400 mil tokens.</li>
+        <li><strong>Confira a fonte sem pedi-la</strong> no texto da pergunta. No meu caso, uma linha de regra igualou o Grep ao RAG.</li>
+        <li><strong>Confira à mão o que a IA juíza marcar como erro.</strong> No meu caso, 2 de 13 marcadas eram erro dela.</li>
+        <li><strong>Olhe o custo de manter.</strong> O Grep não exige nada. O RAG exige índice, modelo local, servidor e atualização.</li>
+        <li><strong>Escolha vendo os números.</strong> A escolha é sua.</li>
+      </ol>
+      <p>Cuidados que aprendi: o tempo do RAG só vale com o servidor ligado antes, e o teste de fonte só vale se a pergunta não pedir a fonte. Os números do meu caso estão em <a class="wiki" data-nota="acerto" href="#acerto">acerto</a>, <a class="wiki" data-nota="fonte" href="#fonte">fonte sem pedir</a>, <a class="wiki" data-nota="cota" href="#cota">cota</a> e <a class="wiki" data-nota="escala" href="#escala">base maior</a>.</p>
+    </section>
+
+    <section id="topo" style="padding-top:44px">
+      <div class="olho"><span>Pesquisa em andamento</span><span>08/11/2026</span><span class="selo">broto</span></div>
+      <h1>O RAG vale a pena?</h1>
+      <details class="termos"><summary>Palavras desta nota (5)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>Claude e Claude Code</dt><dd>O Claude é a IA que responde. O Claude Code é o programa em que ele trabalha com os meus arquivos.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd></dl></details>
+      <p class="lead" style="margin-top:20px">Uso o Claude Code para consultar as 72 notas do mundo do meu RPG de mesa. Pedi a ele que medisse o que muda quando consulta as notas por <strong>RAG</strong> (uma busca com índice) em vez de buscar por palavras com o <strong>Grep</strong>. Tudo grátis e local.</p>
+      <p class="lead"><span class="destaque">Resposta curta: o acerto empata. Em conversa, que é como eu uso o Claude, o RAG gastou de 6% a 36% menos cota que o Grep; em pergunta solta, gastou mais e demorou mais.</span> A fonte por padrão também sai com uma linha de regra no Grep. Falta medir o trabalho de manter o RAG e o teste de dia a dia.</p>
+      <div class="maturidade" role="img" aria-label="Maturidade do artigo: broto, entre semente e madura"><span>semente</span><span class="atual">broto</span><span>madura</span></div>
+      <div class="callout"><div class="callout-tit">Em andamento</div><p>Falta o teste de dia a dia, de 1 a 2 semanas. Esta página será atualizada quando ele terminar.</p></div>
+      
+    </section>
+
+    <section id="fichas">
+      <div class="olho"><span>01</span><span>As opções, lado a lado</span></div>
+      <h2>Fichas dos três jeitos de consultar</h2>
+      <details class="termos"><summary>Palavras desta nota (4)</summary><dl><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd></dl></details>
+      <p>Cada ficha reúne o que foi medido. Escolha um cenário para ver cota e tempo. Campo tracejado e em itálico é o que não foi medido.</p>
+      <div class="cenarios" role="group" aria-label="Cenário">
+        <button type="button" data-cen="longa" aria-pressed="true">Conversa longa</button>
+        <button type="button" data-cen="solta" aria-pressed="false">Pergunta solta, vault de 150 mil</button>
+        <button type="button" data-cen="grande" aria-pressed="false">Base de 400 mil tokens</button>
+      </div>
+      <div class="fichas" id="fichas-lista"></div>
+      <p class="nota-pe">Vault do RPG: 72 notas, cerca de 66 mil tokens (estimativa). As bases de 150 e 400 mil misturam as notas do RPG com notas reais de outros assuntos.</p>
+    </section>
+
+    <section id="acerto">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (5)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>gabarito</dt><dd>A nota certa de cada pergunta, escrita antes do teste.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd><dt>erros de propósito</dt><dd>Erros colocados nas perguntas (uma premissa falsa, nomes parecidos) para ver se a IA cai.</dd></dl></details>
+      <p>Mesmas perguntas para os dois jeitos, com cópias do Claude que não viam o gabarito.</p>
+      <div class="abas" role="tablist" id="abas-acerto"></div>
+      <figure><div class="moldura" id="graf-acerto"></div><figcaption id="leg-acerto"></figcaption></figure>
+    </section>
+
+    <section id="busca-sozinha">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (4)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>palavras diferentes</dt><dd>Pergunta que não usa nenhuma palavra da nota. Exemplo: “quem briga com papel em vez de espada?” para uma nota sobre um advogado.</dd></dl></details>
+      <p>O RAG trabalha em duas etapas, uma depois da outra. Na <strong>1ª, a busca</strong> escolhe alguns pedaços das notas. Na <strong>2ª, a IA</strong> lê só esses pedaços e responde. Se a nota certa não estiver entre os pedaços escolhidos, a IA nem chega a ver essa nota, e costuma responder “não consta”. Por isso mandei medir a 1ª etapa separada, sem a IA.</p>
+      <p>Como mandei medir: 46 perguntas, cada uma com a nota certa anotada antes. Exemplo: para “quem é a Lívia?”, a nota certa é a da Lívia. Se ela veio entre os pedaços que a busca devolveu, conto 1 acerto.</p>
+      <h3>Quantos pedaços a busca devolve</h3>
+      <p>Quanto mais pedaços, mais vezes a nota certa vem. O custo é que a IA tem mais texto para ler.</p>
+      <figure><div class="moldura" id="graf-busca"></div><figcaption id="leg-busca"></figcaption></figure>
+      <p>Com 12 pedaços, que é o normal, a nota certa vem em 86 de cada 100 perguntas. Se a IA responde “não consta”, o RAG repete a busca com 20 pedaços. Para perguntas sobre um assunto só, 8 pedaços bastam; as que juntam várias notas precisam de 20.</p>
+      <h3>Quando a base cresce</h3>
+      <p>Repeti a medida, sempre com 12 pedaços, em bases maiores (as notas extras são de outros assuntos). Há dois tipos de pergunta: as <strong>comuns</strong>, que usam palavras que estão na nota, e as de <strong>palavras diferentes</strong>, que não usam nenhuma, como “quem briga com papel em vez de espada?” para a nota de um advogado.</p>
+      <div class="tabela-caixa"><table class="tab-simples">
+        <thead><tr><th>Base</th><th>Perguntas comuns</th><th>Palavras diferentes</th></tr></thead>
+        <tbody>
+          <tr><td>66 mil tokens (a minha)</td><td class="num" data-rot="Perguntas comuns">89 de cada 100</td><td class="num" data-rot="Palavras diferentes">79 de cada 100</td></tr>
+          <tr><td>150 mil tokens</td><td class="num" data-rot="Perguntas comuns">88 de cada 100</td><td class="num" data-rot="Palavras diferentes">64 de cada 100</td></tr>
+          <tr><td>400 mil tokens</td><td class="num" data-rot="Perguntas comuns">88 de cada 100</td><td class="num" data-rot="Palavras diferentes">57 de cada 100</td></tr>
+        </tbody>
+      </table></div>
+      <p>Nas perguntas de palavras diferentes a busca perde com a base maior; nas comuns quase não muda. Cada grupo tem poucas notas: 2 notas a mais ou a menos mudam 14 pontos.</p>
+    </section>
+
+    <section id="fonte">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (4)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>mensagens soltas</dt><dd>Mensagens curtas, escritas como eu escrevo para o Claude, sem dizer qual nota procurar nem como responder.</dd><dt>regra fixa</dt><dd>Uma linha permanente que manda a IA dizer de qual nota veio cada informação.</dd></dl></details>
+      <p>Seis perguntas soltas, nenhuma menção a fonte. De cada 100 afirmações, quantas vieram com a nota de origem.</p>
+      <figure><div class="moldura" id="graf-fonte"></div><figcaption>O RAG já manda citar a fonte dentro do próprio comando. O Grep só cita se houver uma regra fixa. A fonte conferiu em 98% (RAG) e 100% (Grep com regra).</figcaption></figure>
+      <div class="tabela-caixa"><table class="tab-simples">
+        <thead><tr><th>Jeito</th><th>Afirmações com fonte</th><th>A fonte confere</th></tr></thead>
+        <tbody>
+          <tr><td>Grep puro, sem pedir</td><td class="num" data-rot="Afirmações com fonte">0 de 46</td><td data-rot="A fonte confere">não se aplica</td></tr>
+          <tr><td>RAG, sem pedir</td><td class="num" data-rot="Afirmações com fonte">46 de 47</td><td class="num" data-rot="A fonte confere">45 de 46</td></tr>
+          <tr><td>Grep com a regra fixa</td><td class="num" data-rot="Afirmações com fonte">36 de 36</td><td class="num" data-rot="A fonte confere">36 de 36</td></tr>
+        </tbody>
+      </table></div>
+      <div class="regra-fonte"><code id="regra-texto">Regra permanente: sempre diga de qual nota veio cada informação.</code><button type="button" id="copiar">Copiar regra</button></div>
+      <div id="copiado" aria-live="polite"></div>
+    </section>
+
+    <section id="cota">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (12)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>mensagens soltas</dt><dd>Mensagens curtas, escritas como eu escrevo para o Claude, sem dizer qual nota procurar nem como responder.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>erros de propósito</dt><dd>Erros colocados nas perguntas (uma premissa falsa, nomes parecidos) para ver se a IA cai.</dd><dt>palavras diferentes</dt><dd>Pergunta que não usa nenhuma palavra da nota. Exemplo: “quem briga com papel em vez de espada?” para uma nota sobre um advogado.</dd><dt>“já tem algo sobre X?”</dt><dd>Pergunta em que eu quero saber se um personagem ou uma missão já existe nas notas.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd><dt>ajustado</dt><dd>O RAG depois dos ajustes medidos: fusão por posição, aviso de nota vazia e regra de repetir a busca.</dd></dl></details>
+      <p>Aviso antes dos números: <strong>contei a cota de dois jeitos, e eles não se misturam</strong>. Nas conversas, somei tudo o que o Claude leu em cada passo, inclusive o que já estava na conversa (isso se repete a cada passo). Nos testes de 8 a 10 perguntas, usei o tamanho que a conversa dele tinha no fim. Para ter uma régua: colar o vault inteiro (66 mil tokens) no pedido gastou 182.710 tokens num teste de perguntas. No gráfico, barra à esquerda: o RAG gastou menos. Barra à direita: gastou mais.</p>
+      <figure><div class="moldura" id="graf-cota"></div><figcaption>A diferença muda com o tipo de uso. Depende de quantas buscas o assistente faz, e isso depende da instrução que ele recebe. As duas últimas linhas são as perguntas “já tem algo sobre X?” e as de palavras diferentes (sem nenhuma palavra da nota).</figcaption></figure>
+      <p>As porcentagens escondem a base. Os mesmos testes, com os tokens. Eu uso o Claude principalmente em conversas longas, por isso elas vêm primeiro.</p>
+      <h3>Em conversa</h3>
+      <div class="tabela-caixa"><table class="tab-simples">
+        <thead><tr><th>Teste</th><th>Tokens: Grep → RAG</th><th>Diferença</th></tr></thead>
+        <tbody>
+          <tr><td>Conversa numa missão, 3 vezes</td><td class="num" data-rot="Tokens: Grep → RAG">~551 mil → ~352 mil por mensagem, somando cada passo</td><td class="num" data-rot="Diferença">−36%</td></tr>
+          <tr><td>Conversa numa missão, 1ª medida (2 conversas)</td><td class="num" data-rot="Tokens: Grep → RAG">~395 mil → ~304 mil por mensagem, somando cada passo</td><td class="num" data-rot="Diferença">−23%</td></tr>
+          <tr><td>11 conversas com erros de propósito (64 mensagens)</td><td class="num" data-rot="Tokens: Grep → RAG">~200 mil → ~188 mil por mensagem, somando cada passo</td><td class="num" data-rot="Diferença">−6%</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Em pergunta solta</h3>
+      <div class="tabela-caixa"><table class="tab-simples">
+        <thead><tr><th>Teste</th><th>Tokens: Grep → RAG</th><th>Diferença</th></tr></thead>
+        <tbody>
+          <tr><td>Base de 400 mil, pergunta solta</td><td class="num" data-rot="Tokens: Grep → RAG">~93 mil → ~124 mil no fim do teste de 10</td><td class="num" data-rot="Diferença">+33%</td></tr>
+          <tr><td>Base de 150 mil, pergunta solta</td><td class="num" data-rot="Tokens: Grep → RAG">~84 mil → ~133 mil no fim do teste de 10</td><td class="num" data-rot="Diferença">+59%</td></tr>
+          <tr><td>“Já tem algo sobre X?” (RAG ajustado)</td><td class="num" data-rot="Tokens: Grep → RAG">~70 mil → ~111 mil no fim do teste de 8</td><td class="num" data-rot="Diferença">+59%</td></tr>
+          <tr><td>Palavras diferentes (RAG ajustado)</td><td class="num" data-rot="Tokens: Grep → RAG">~87 mil → ~144 mil no fim do teste de 10</td><td class="num" data-rot="Diferença">+66%</td></tr>
+        </tbody>
+      </table></div>
+      <p>Por que o sinal muda? O que os dados mostram:</p>
+      <ul class="lista">
+        <li>Todo teste começa com cerca de 45 mil tokens de texto fixo, igual nos dois jeitos (conferi nos quatro testes de base grande). O que muda é o resto.</li>
+        <li>Cada busca do RAG devolve 12 pedaços, precise ou não: de 10 mil a 12 mil caracteres por busca nesses quatro testes. Isso pesa no tamanho final de um teste curto.</li>
+        <li>Numa conversa, o Claude relê tudo a cada passo, então o tamanho da conversa pesa. Repeti 3 vezes por jeito uma conversa de trabalho numa missão (6 mensagens soltas: ver o que está em aberto, pedir o contexto da missão, propor mudanças e pedir o resumo). O RAG gastou menos nas 3 (de 284 mil a 425 mil por mensagem) e o Grep gastou mais nas 3 (de 466 mil a 631 mil). A média foi 36% menos; tirando uma das conversas do Grep, em que digitei uma palavra a mais por engano, 31% menos. Na primeira vez que mandei medir, com 2 conversas por jeito, tinha dado 23% menos.</li>
+        <li>Calculei dos registros por que isso acontece: cada passo do Grep relê uma conversa maior (cerca de 118 mil tokens contra 87 mil do RAG), porque o Grep abre as notas inteiras e elas ficam na conversa. O número de passos por mensagem foi parecido (4,7 contra 4,1).</li>
+        <li>Nas 11 conversas com erros de propósito, o RAG da primeira versão gastou 27% menos (145 mil contra 200 mil por mensagem). Depois que mandei buscar as duas fontes quando o dado pode divergir, gastou 6% menos (188 mil): a regra faz o assistente buscar mais. O lado do Grep não foi repetido nessa rodada, então os 200 mil são da primeira medida.</li>
+        <li>Quando a base cresce, o Grep devolve mais texto (de 107 mil para 134 mil caracteres, de 150 mil para 400 mil tokens de base) e o RAG não (de 162 mil para 136 mil). Por isso a diferença caiu de +59% para +33%.</li>
+      </ul>
+      <h3>E se o RAG fosse mais enxuto?</h3>
+      <p>Nada obriga um RAG a devolver 12 pedaços por busca. Refiz o teste de 150 mil com 8 e com 4 pedaços, um teste de cada vez, com o servidor ligado:</p>
+      <div class="tabela-caixa"><table class="tab-simples">
+        <thead><tr><th>Jeito</th><th>Tokens no fim do teste</th><th>Tempo</th></tr></thead>
+        <tbody>
+          <tr><td>Grep, para comparar</td><td class="num" data-rot="Tokens no fim do teste">~84 mil</td><td class="num" data-rot="Tempo">32 s</td></tr>
+          <tr><td>RAG com 12 pedaços</td><td class="num" data-rot="Tokens no fim do teste">~133 mil</td><td class="num" data-rot="Tempo">53 s</td></tr>
+          <tr><td>RAG com 8 pedaços</td><td class="num" data-rot="Tokens no fim do teste">~142 mil</td><td class="num" data-rot="Tempo">73 s</td></tr>
+          <tr><td>RAG com 4 pedaços</td><td class="num" data-rot="Tokens no fim do teste">~98 mil</td><td class="num" data-rot="Tempo">51 s</td></tr>
+        </tbody>
+      </table></div>
+      <p>Com 4 pedaços o RAG chegou perto do Grep, mas não ficou abaixo, e o acerto foi o mesmo dos outros (9,5 de 10). Com 8 pedaços ele gastou mais que com 12, porque repetiu mais buscas (19 comandos contra 13). O que isso sustenta: nas perguntas soltas, o RAG que mandei testar não gastou menos que o Grep, nem enxuto. O que não sustenta: “todo RAG gasta mais”. Só mandei testar uma montagem de RAG, variando apenas o número de pedaços.</p>
+      <p>Depois repeti a conversa numa missão 3 vezes com 4 pedaços. Deu cerca de 330 mil tokens por mensagem, contra 352 mil com 12 pedaços e 551 mil com o Grep. Os 4 pedaços gastaram 6% menos que os 12, uma diferença menor do que a variação entre conversas do mesmo jeito (de 284 mil a 425 mil com 12 pedaços; de 286 mil a 356 mil com 4). As 3 conversas apontaram as mesmas divergências que as de 12 pedaços. Então, numa conversa, usar 4 pedaços não perdeu contexto nesse teste, mas também não economizou de forma clara. A ressalva continua valendo: com poucos pedaços a busca acha a nota certa de primeira menos vezes (68 contra 86 de cada 100, com 5 e 12 pedaços), e numa conversa isso não apareceu.</p>
+      <p>O que eu ainda não sei: cada teste rodou uma vez (menos a conversa numa missão, que rodou 3 vezes por jeito, sempre a mesma missão), e o que o Claude escreve varia de um teste para outro (de 20 mil a 39 mil tokens nos quatro testes de base grande). Para a conta ficar firme, falta repetir cada teste 3 vezes e contar tudo do mesmo jeito.</p>
+    </section>
+
+    <section id="tempo-resposta">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (4)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd></dl></details>
+      <p>Segundos por resposta. O servidor do RAG estava ligado e aquecido, e cada teste de base grande rodou sozinho, um agente por vez.</p>
+      <div class="legenda"><span><i class="b-g" style="background:var(--grep)"></i>Grep</span><span><i style="background:var(--rag)"></i>RAG</span></div>
+      <figure><div class="moldura" id="graf-tempo"></div></figure>
+    </section>
+
+    <section id="escala">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (3)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd></dl></details>
+      <p>Cota por teste de 10 perguntas, em milhares de tokens.</p>
+      <div class="legenda"><span><i style="background:var(--grep)"></i>Grep</span><span><i style="background:var(--rag)"></i>RAG</span></div>
+      <figure><div class="moldura" id="graf-escala"></div></figure>
+    </section>
+
+    <section id="achados">
+      <div class="olho"><span>03</span><span>Quem faz o quê</span></div>
+      <h2>O que cada um fez que o outro não fez</h2>
+      <details class="termos"><summary>Palavras desta nota (7)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd><dt>citam</dt><dd>O comando que lista todas as notas que citam um nome.</dd></dl></details>
+      <p>Os nomes que aparecem aqui (Tibio, Mira, Zifel, Lívia, Liga do Caos) são personagens e grupos do mundo de RPG usado nos testes.</p>
+      <div class="achados">
+        <div class="a-rag">
+          <h3>O RAG</h3>
+          <ul>
+            <li>Mostra a fonte por padrão: 46 de 47 afirmações com nota de origem, sem ninguém pedir.</li>
+            <li>Achou as pendências da Liga do Caos que o Grep perdeu ao resumir várias notas.</li>
+            <li>Achou a Mira pelo sentido ("a religiosa de Porto Altheris e a organização secreta"), onde a palavra não batia.</li>
+            <li>Na "sereia", citou a Lívia como a mais parecida. O Grep só disse que não tem.</li>
+            <li>Numa conversa de trabalho numa missão, gastou 36% menos cota (3 repetições).</li>
+            <li>Avisa quando a nota existe mas está vazia, e se atualiza sozinho a cada nota nova.</li>
+          </ul>
+        </div>
+        <div class="a-grep">
+          <h3>O Grep</h3>
+          <ul>
+            <li>Lista todas as notas que citam um nome: 5 de 5, contra 2 de 5 do RAG antes da busca por nome.</li>
+            <li>Achou a Zifel, que o RAG nunca achou, nem com 20 pedaços.</li>
+            <li>Aguenta a base crescer: 84 mil tokens no fim de um teste de 10 perguntas com 150 mil de base, 93 mil com 400 mil.</li>
+            <li>Mais rápido em pergunta solta: 32 s e 45 s por teste, contra 53 s e 65 s do RAG, mesmo com o servidor do RAG ligado e aquecido.</li>
+            <li>Não precisa de índice, modelo nem servidor para manter.</li>
+            <li>Com uma linha de regra, cita fonte em tudo.</li>
+          </ul>
+        </div>
+      </div>
+      <p>O erro típico do RAG é a omissão: dizer "não consta" para o que existe. O do Grep é juntar mal várias notas. Os dois erraram coisas diferentes, e nenhum inventou nome, parentesco ou motivo.</p>
+    </section>
+
+    <section id="tabela">
+      <div class="olho"><span>04</span><span>Todos os testes</span></div>
+      <h2>A tabela completa</h2>
+      <p>Procure por uma palavra, filtre por tipo ou clique no título de uma coluna para ordenar.</p>
+      <div class="ferramentas">
+        <input id="busca" type="search" placeholder="Procurar nos testes" aria-label="Procurar nos testes">
+        <div class="filtros" id="filtros" role="group" aria-label="Filtrar por tipo"></div>
+      </div>
+      <div class="tabela-caixa">
+        <table>
+          <thead><tr>
+            <th id="th-teste" aria-sort="none"><button type="button" data-ord="teste">Teste</button></th>
+            <th id="th-data" aria-sort="ascending"><button type="button" data-ord="data">Data</button></th>
+            <th>Resultado</th>
+            <th>Tipo</th>
+          </tr></thead>
+          <tbody id="corpo-tabela"></tbody>
+        </table>
+        <div id="vazio-tabela">Nenhum teste com esse filtro.</div>
+      </div>
+    </section>
+
+<section id="metodo">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (12)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>Claude e Claude Code</dt><dd>O Claude é a IA que responde. O Claude Code é o programa em que ele trabalha com os meus arquivos.</dd><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>gabarito</dt><dd>A nota certa de cada pergunta, escrita antes do teste.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd><dt>busca por palavra (BM25)</dt><dd>Procura as palavras da pergunta nas notas e dá mais peso às palavras raras.</dd><dt>busca por sentido (mE5)</dt><dd>Um modelo pequeno, gratuito e local transforma o texto em números, para achar notas parecidas mesmo com outras palavras.</dd><dt>fusão por posição (RRF)</dt><dd>Junta a lista da busca por palavra e a da busca por sentido olhando só a posição de cada nota (1ª, 2ª, 3ª…), sem somar notas.</dd><dt>ajustado</dt><dd>O RAG depois dos ajustes medidos: fusão por posição, aviso de nota vazia e regra de repetir a busca.</dd><dt>juiz</dt><dd>Um modelo (o Gemini, pelo programa agy) que confere se a nota citada sustenta a frase.</dd></dl></details>
+      <p>Esta nota diz quem fez cada parte e com qual versão. Datas dos testes: 07 e 08/11/2026.</p>
+      <div class="tabela-caixa"><table class="tab-metodo">
+        <thead><tr><th>Papel</th><th>Modelo e versão</th><th>Detalhe</th></tr></thead>
+        <tbody>
+          <tr><td>Assistente que respondeu aos testes</td><td class="num">claude-sonnet-5-5, no Claude Code 2.1.319</td><td>Agentes que não viam o gabarito. Parâmetros no padrão do Claude Code: nenhum foi alterado.</td></tr>
+          <tr><td>Juiz das fontes</td><td class="num">gemini-3.8-flash-high, pelo agy 1.5.3</td><td>Onde ele falhou, o mesmo pedido foi refeito com claude-sonnet-5-5-high pelo agy. Em 3 conversas nenhum dos dois respondeu e elas ficaram sem juiz.</td></tr>
+          <tr><td>Correção do acerto</td><td>O próprio Claude que escreveu o artigo</td><td>Nas provas de busca o gabarito é a nota certa (conferência mecânica). Nas conversas a correção não foi cega.</td></tr>
+          <tr><td>Busca por sentido</td><td class="num">intfloat/multilingual-e5-small, no computador</td><td>sentence-transformers 6.2.0, torch 2.15.0. O mE5-base foi testado e não ajudou.</td></tr>
+          <tr><td>Busca por palavra e fusão</td><td class="num">BM25 próprio e fusão por posição (RRF, constante 60)</td><td>A constante 60 é o valor padrão da literatura, não foi ajustada a este vault. Pedaços de 200 a 1.500 caracteres. 12 pedaços por busca; 20 na repetição.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Textos que os agentes receberam</h3>
+      <p>Os dois modelos de instrução do teste “fonte sem pedir”, sem os caminhos de pasta. Nas provas de acerto o texto também pedia “cite o nome do arquivo de cada fonte”; só neste teste esse pedido foi tirado.</p>
+      <details><summary>Com RAG</summary>
+<pre>Você ajuda um mestre de RPG de mesa a consultar as notas do mundo dele. Você NÃO pode ler nem buscar nos arquivos de notas diretamente (nada de Grep, Glob ou Read nas notas). O único jeito de consultar é este comando, rodado dentro da pasta do teste:
+
+python -m rag.consulta perguntar "&lt;pergunta&gt;" --k 12
+
+Regras de uso do comando:
+- "O que as notas dizem sobre X": perguntar "..." --k 12 (use --k 20 se a pergunta junta várias notas).
+- "Quais notas falam de X / onde aparece X": troque perguntar por citam "X".
+- Se a resposta for "não consta" ou "não achei", repita com --k 20 e, se há um nome específico, com citam "X" antes de desistir.
+O comando devolve pedaços das notas. Responda usando SOMENTE esses pedaços.
+
+O mestre vai mandar 6 mensagens, uma de cada vez. Responda cada uma como se ele tivesse acabado de mandar, em português simples e curto. Não carregue suposições de uma mensagem para a outra.
+
+Mensagens: 1. me fala do tibio  2. quem é a lívia?  3. o que está em aberto na liga do caos?  4. qual missão paga mais?  5. a igreja caça não-humanos?  6. como funciona o conselho oculto da ordem?
+
+No final, devolva as 6 respostas EXATAMENTE como você as mostraria ao mestre, numeradas, sem resumir e sem acrescentar nada. Depois, em uma linha, quantas vezes rodou o comando.</pre></details>
+      <details><summary>Com Grep (sem RAG)</summary>
+<pre>Você ajuda um mestre de RPG de mesa a consultar as notas do mundo dele. Pasta das notas: a pasta do teste (arquivos .md). Use SOMENTE as ferramentas Grep, Glob e Read dentro dessa pasta. Não olhe nenhuma outra pasta nem rode outros comandos.
+
+O mestre vai mandar 6 mensagens, uma de cada vez. Responda cada uma como se ele tivesse acabado de mandar, em português simples e curto, só com o que está nas notas. Não carregue suposições de uma mensagem para a outra.
+
+Mensagens: as mesmas 6 do teste com RAG.
+
+No final, devolva as 6 respostas EXATAMENTE como você as mostraria ao mestre, numeradas, sem resumir e sem acrescentar nada. Depois, em uma linha, o número de chamadas de ferramenta que usou.</pre></details>
+
+      <h3>Onde estão os registros</h3>
+      <ul class="lista">
+        <li>Um arquivo compactado de 4,9 MB com a transcrição de 37 dos assistentes, até as 02h17 de 08/11/2026.</li>
+        <li>253 respostas dos assistentes, uma por arquivo.</li>
+        <li>O código do RAG, os testes e os scripts de medição, as perguntas das provas e as mensagens das conversas.</li>
+      </ul>
+      <p>Nada disso está publicado nesta página: os arquivos ficam no meu projeto rag-rpg. Pela data do arquivo compactado, os 13 agentes das provas de busca, de fonte e de base maior (tarde de 08/11) ficaram de fora. Os registros deles existem só no histórico do Claude Code, ainda não exportado.</p>
+    </section>
+
+<section id="feito-a-mao">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (13)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Claude e Claude Code</dt><dd>O Claude é a IA que responde. O Claude Code é o programa em que ele trabalha com os meus arquivos.</dd><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>gabarito</dt><dd>A nota certa de cada pergunta, escrita antes do teste.</dd><dt>palavras diferentes</dt><dd>Pergunta que não usa nenhuma palavra da nota. Exemplo: “quem briga com papel em vez de espada?” para uma nota sobre um advogado.</dd><dt>busca por palavra (BM25)</dt><dd>Procura as palavras da pergunta nas notas e dá mais peso às palavras raras.</dd><dt>busca por sentido (mE5)</dt><dd>Um modelo pequeno, gratuito e local transforma o texto em números, para achar notas parecidas mesmo com outras palavras.</dd><dt>fusão por posição (RRF)</dt><dd>Junta a lista da busca por palavra e a da busca por sentido olhando só a posição de cada nota (1ª, 2ª, 3ª…), sem somar notas.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd><dt>LlamaIndex e Chroma</dt><dd>Uma biblioteca pronta para montar RAG (LlamaIndex) e o banco que guarda os pedaços (Chroma).</dd><dt>citam</dt><dd>O comando que lista todas as notas que citam um nome.</dd><dt>skill</dt><dd>Um roteiro que o Claude Code segue quando eu o chamo, como /rag.</dd></dl></details>
+      <p>Esta nota explica por que o RAG deste artigo foi escrito peça por peça, o que cada peça faz e o que cada decisão mudou nos números.</p>
+
+      <h3>O motivo</h3>
+      <p>Segundo o registro do projeto, o RAG foi um projeto de treino: construir à mão, sobre o vault de RPG, para aprender a técnica e tirar dela um fluxo que se repete em outras bases (as skills /rag e /rag-montar). As regras eram três: nada pago; a busca por palavra, a busca por sentido e a fusão escritas no próprio projeto; e bibliotecas prontas só no fim, para comparar com a mesma prova.</p>
+
+      <h3>As peças que mandei escrever</h3>
+      <div class="tabela-caixa"><table class="tab-metodo">
+        <thead><tr><th>Peça</th><th>O que faz</th><th>O que se mediu</th></tr></thead>
+        <tbody>
+          <tr><td>Cortador</td><td>Corta cada nota por seção, de 200 a 1.500 caracteres, com o nome da nota e da pasta no começo de cada pedaço. Nota vazia vira um pedaço-aviso: “a nota existe, mas está vazia”.</td><td>Sem o aviso, o RAG dizia “não existe” para o que estava vazio (o Borin e a Leona).</td></tr>
+          <tr><td>Busca por palavra</td><td>BM25 próprio, sem acento.</td><td>Sozinha, acha 36% das notas certas nas perguntas com palavras diferentes (12 pedaços).</td></tr>
+          <tr><td>Busca por sentido</td><td>O modelo local mE5-small, com os prefixos <span class="num">query:</span> e <span class="num">passage:</span>.</td><td>Sozinha, acha 50% (12 pedaços). O mE5-base, maior, não ajudou.</td></tr>
+          <tr><td>Fusão por posição</td><td>Junta as duas listas pela posição de cada nota, sem peso para ajustar.</td><td>De 57% para 79% nas perguntas com palavras diferentes, e de 86% para 89% nas perguntas comuns, contra a soma de notas (12 pedaços).</td></tr>
+          <tr><td>Busca por nome</td><td>O comando <span class="num">citam</span> lista todas as notas que citam um nome.</td><td>Achou 19 de 19 notas do gabarito nas 4 perguntas “quais notas falam de X”. Devolveu 33 notas; só 58% eram do gabarito.</td></tr>
+          <tr><td>Atualização automática</td><td>Antes de cada busca, refaz só as notas novas, alteradas ou apagadas.</td><td>Conferir se algo mudou: 0,02 s. Refazer 1 nota: 0,17 s. Refazer tudo (72 notas): 17 s.</td></tr>
+          <tr><td>Servidor local</td><td>Mantém o modelo na memória e só responde no próprio computador. Liga sozinho e desliga após 4 horas parado.</td><td>De cerca de 8 s para 0,3 s por consulta.</td></tr>
+          <tr><td>Registro de uso</td><td>Anota uma linha por consulta: tempo, buscas vazias e repetidas.</td><td>Alimenta o teste de dia a dia.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Decisões que os testes derrubaram</h3>
+      <ul class="lista">
+        <li>Soma de notas com peso 0,8 pareceu melhor (93% nas perguntas com palavras diferentes, com 20 pedaços). Mas o peso foi escolhido olhando as mesmas perguntas, então não virou regra. A fusão por posição não tem peso para decorar.</li>
+        <li>O modelo de busca maior (mE5-base) levou 3 minutos para indexar, contra 1,5 minuto, e não deu ganho claro. Ficou o pequeno.</li>
+        <li>A busca acha mais com mais pedaços: nas perguntas com palavras diferentes, de 57% com 12 pedaços para 86% com 20. Por isso a regra de repetir a busca com 20 pedaços antes de dizer “não consta”.</li>
+      </ul>
+
+      <h3>O que deu de trabalho</h3>
+      <p>Hoje o RAG tem 16 arquivos de código (1.287 linhas) e 14 arquivos de teste, com 175 testes passando. Escrever à mão custou mais linhas do que o script da biblioteca. Em troca vieram o nome da nota em cada pedaço, o tratamento da nota vazia, a busca por nome, a atualização automática, o servidor e os links para a fonte, que o script da biblioteca não tinha.</p>
+
+      <h3>O que não sei</h3>
+      <p>Só mandei testar uma biblioteca (LlamaIndex com Chroma), com uma configuração por variante e sem afinar o tamanho do corte nem a sobreposição: afinando, ela pode melhorar. O BM25 dela usa radicais em inglês e não mandei testar a troca. Escrever à mão foi uma escolha de aprendizado; estes números não provam que à mão é sempre melhor.</p>
+    </section>
+
+    <section id="mao-contra-biblioteca">
+      <h2>x</h2>
+      <details class="termos"><summary>Palavras desta nota (6)</summary><dl><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>palavras diferentes</dt><dd>Pergunta que não usa nenhuma palavra da nota. Exemplo: “quem briga com papel em vez de espada?” para uma nota sobre um advogado.</dd><dt>“já tem algo sobre X?”</dt><dd>Pergunta em que eu quero saber se um personagem ou uma missão já existe nas notas.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd></dl></details>
+      <p>O mesmo teste nas duas: o mesmo modelo de busca, a mesma cópia do vault e as mesmas 64 perguntas. A busca devolve 12 pedaços de nota e contamos quantas das notas certas aparecem entre eles, sem IA no meio. Barra maior é melhor.</p>
+      <div class="legenda"><span><i style="background:var(--rag)"></i>Feito à mão</span><span><i style="background:var(--cinza)"></i>Biblioteca pronta</span></div>
+      <figure><div class="moldura" id="graf-mao"></div><figcaption>Feito à mão: 89, 79 e 83 de cada 100 notas certas. Biblioteca pronta: 90, 57 e 78. Para a biblioteca mostrei a melhor das duas configurações testadas em cada tipo de pergunta. Ela só chega perto nas perguntas comuns (90 contra 89), e com pedaços de nota 2,7 vezes maiores. Nas outras a diferença é de 22 pontos (palavras diferentes) e 5 pontos (“já tem algo sobre X?”). São 46, 10 e 8 perguntas; uma nota a mais ou a menos mexe 7 pontos nas de palavras diferentes e 4 nas de “já tem algo sobre X?”.</figcaption></figure>
+      <p class="nota-pe"><strong>Perguntas comuns:</strong> as 46 do começo dos testes (detalhe de uma nota, relação entre notas e confusão entre nomes). <strong>Palavras diferentes:</strong> a pergunta não usa nenhuma palavra da nota, como “quem briga com papel em vez de espada?” para uma nota sobre um advogado. <strong>“Já tem algo sobre X?”:</strong> eu pergunto se um personagem ou uma missão já existe nas notas.</p>
+
+      <p>Além do que a busca achou, o que cada uma exigiu:</p>
+      <div class="tabela-caixa"><table class="tab-metodo tab-comp">
+        <thead><tr><th>Item</th><th>Feito à mão</th><th>Biblioteca pronta</th></tr></thead>
+        <tbody>
+          <tr><td>Pedaços de nota</td><td data-rot="Feito à mão">362 pedaços, de cerca de 631 caracteres</td><td data-rot="Biblioteca pronta">400 pedaços de cerca de 571 caracteres (corte por título) ou 132 de cerca de 1.731 (corte padrão)</td></tr>
+          <tr><td>Notas vazias</td><td data-rot="Feito à mão">Mantém as 72 notas; as vazias viram um aviso</td><td data-rot="Biblioteca pronta">O corte por título perdeu as 3 vazias (69 de 72). O corte padrão manteve as 72, mas com um pedaço de texto vazio.</td></tr>
+          <tr><td>Modelo de linguagem pago</td><td data-rot="Feito à mão">Não precisa</td><td data-rot="Biblioteca pronta">A junção das duas buscas tenta usar o da OpenAI, que é pago. Foi trocado por um modelo de mentira, que não chama nada.</td></tr>
+          <tr><td>Pacotes instalados</td><td data-rot="Feito à mão">2 dependências</td><td data-rot="Biblioteca pronta">73 pacotes novos</td></tr>
+          <tr><td>Linhas de código</td><td data-rot="Feito à mão">880 na época (hoje 1.287), com comando, servidor, atualização automática, busca por nome e links</td><td data-rot="Biblioteca pronta">139, só a busca</td></tr>
+          <tr><td>Velocidade da busca</td><td data-rot="Feito à mão">Não medida nesta comparação</td><td data-rot="Biblioteca pronta">18 a 30 milissegundos</td></tr>
+        </tbody>
+      </table></div>
+      <ul class="lista">
+        <li>Com pedaços do mesmo tamanho (571 contra 631 caracteres), a versão feita à mão ganha nos três tipos: 89 contra 79, 79 contra 57 e 83 contra 74.</li>
+        <li>O corte padrão da biblioteca tem pedaços 2,7 vezes maiores. Isso manda 2,7 vezes mais texto ao Claude e gasta mais cota.</li>
+        <li>O que a biblioteca faz bem: poucas linhas para o básico e busca rápida. Mas esse script só fazia a busca.</li>
+      </ul>
+    </section>
+
+    <section id="linha">
+      <div class="olho"><span>05</span><span>Linha do tempo</span></div>
+      <h2>Do primeiro teste até hoje</h2>
+      <details class="termos"><summary>Palavras desta nota (1)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd></dl></details>
+      <ol class="tempo" id="tempo"></ol>
+    </section>
+
+    <section id="como" class="diagrama">
+      <div class="olho"><span>06</span><span>Como foi montado</span></div>
+      <h2>O caminho de uma pergunta</h2>
+      <details class="termos"><summary>Palavras desta nota (3)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>busca por palavra (BM25)</dt><dd>Procura as palavras da pergunta nas notas e dá mais peso às palavras raras.</dd><dt>fusão por posição (RRF)</dt><dd>Junta a lista da busca por palavra e a da busca por sentido olhando só a posição de cada nota (1ª, 2ª, 3ª…), sem somar notas.</dd></dl></details>
+      <p>O RAG deste teste foi escrito à mão, com um modelo de busca local e gratuito. Depois ele ganhou ajustes medidos um a um. As versões estão em <a class="wiki" data-nota="metodo" href="#metodo">método</a>.</p>
+      <figure>
+        <div class="moldura">
+          <svg viewBox="0 0 900 310" role="img" aria-label="Fluxo do RAG: as notas viram pedaços, a busca por palavra e a busca por sentido se juntam por posição, os 12 melhores pedaços com fonte vão para o Claude, que responde e repete a busca se vier não consta">
+            <defs>
+              <marker id="ponta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="ponta"/></marker>
+              <marker id="pontat" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="ponta-t"/></marker>
+            </defs>
+            <rect class="caixa" x="10" y="105" width="110" height="60" rx="4"/>
+            <text class="rot" x="65" y="131" text-anchor="middle">Notas</text><text class="rot2" x="65" y="150" text-anchor="middle">arquivos .md</text>
+            <rect class="caixa" x="160" y="105" width="140" height="60" rx="4"/>
+            <text class="rot" x="230" y="131" text-anchor="middle">Pedaços</text><text class="rot2" x="230" y="150" text-anchor="middle">por seção, com o nome</text>
+            <rect class="caixa" x="350" y="40" width="160" height="56" rx="4"/>
+            <text class="rot" x="430" y="65" text-anchor="middle">Busca por palavra</text><text class="rot2" x="430" y="83" text-anchor="middle">texto escrito igual</text>
+            <rect class="caixa" x="350" y="170" width="160" height="56" rx="4"/>
+            <text class="rot" x="430" y="195" text-anchor="middle">Busca por sentido</text><text class="rot2" x="430" y="213" text-anchor="middle">modelo local gratuito</text>
+            <rect class="caixa-rag" x="560" y="105" width="120" height="60" rx="4"/>
+            <text class="rot" x="620" y="131" text-anchor="middle">Fusão</text><text class="rot2" x="620" y="150" text-anchor="middle">por posição (RRF)</text>
+            <rect class="caixa" x="730" y="105" width="160" height="60" rx="4"/>
+            <text class="rot" x="810" y="131" text-anchor="middle">12 pedaços</text><text class="rot2" x="810" y="150" text-anchor="middle">com fonte e link</text>
+            <rect class="caixa" x="730" y="240" width="160" height="56" rx="4"/>
+            <text class="rot" x="810" y="265" text-anchor="middle">Claude responde</text><text class="rot2" x="810" y="283" text-anchor="middle">só com os pedaços</text>
+            <path class="seta" d="M120 135 H158" marker-end="url(#ponta)"/>
+            <path class="seta" d="M300 135 H325 V68 H348" marker-end="url(#ponta)"/>
+            <path class="seta" d="M300 135 H325 V198 H348" marker-end="url(#ponta)"/>
+            <path class="seta" d="M510 68 H535 V135 H558" marker-end="url(#ponta)"/>
+            <path class="seta" d="M510 198 H535 V135 H558" marker-end="url(#ponta)"/>
+            <path class="seta" d="M680 135 H728" marker-end="url(#ponta)"/>
+            <path class="seta" d="M810 165 V238" marker-end="url(#ponta)"/>
+            <path class="seta-tracejada" d="M730 268 H470 V228" marker-end="url(#pontat)"/>
+            <text class="rot2" x="600" y="258" text-anchor="middle">se vier "não consta": repete com 20 pedaços</text>
+            <text class="rot2" x="600" y="288" text-anchor="middle">e com a busca por nome</text>
+            <path class="seta-tracejada" d="M65 165 V228 H230 V167" marker-end="url(#pontat)"/>
+            <text class="rot2" x="147" y="250" text-anchor="middle">nota nova ou editada:</text>
+            <text class="rot2" x="147" y="266" text-anchor="middle">refaz só ela (0,17 s)</text>
+          </svg>
+        </div>
+        <figcaption>A fusão por posição, em âmbar, foi a decisão que mais pesou: nas perguntas sem palavra em comum, a busca achou 79 de cada 100 notas certas, contra 57 com a soma de notas.</figcaption>
+      </figure>
+      <p>As decisões medidas, uma a uma, e a comparação com a biblioteca pronta estão em <a class="wiki" data-nota="feito-a-mao" href="#feito-a-mao">feito à mão</a>.</p>
+    </section>
+
+    <section id="conclusao">
+      <div class="olho"><span>07</span><span>Conclusão</span><span class="estado andamento">provisória</span></div>
+      <h2>O que eu concluí</h2>
+      <details class="termos"><summary>Palavras desta nota (11)</summary><dl><dt>RAG</dt><dd>O jeito em que a IA primeiro busca, nas notas, só os pedaços que parecem certos e então responde com base neles.</dd><dt>Grep</dt><dd>A busca por palavras que o Claude Code já traz: procura o texto escrito igual e lê as notas que achou. “Sem RAG” não quer dizer “sem busca”.</dd><dt>vault</dt><dd>A pasta de notas do Obsidian. O meu tem 72 notas do mundo de um RPG de mesa, cerca de 66 mil tokens.</dd><dt>token</dt><dd>O pedaço de texto que a IA conta. Quanto mais tokens, mais cota se gasta.</dd><dt>cota</dt><dd>Quantos tokens o Claude usa. Nas conversas, conto tudo o que ele lê em cada passo; nos testes de 10 perguntas, o tamanho que a conversa dele tinha no fim.</dd><dt>pedaço</dt><dd>Cada parte de uma nota que a busca devolve. Normalmente 12; na repetição, 20.</dd><dt>cópia do Claude</dt><dd>Uma cópia do Claude que faz uma tarefa sozinha, sem ver o gabarito.</dd><dt>servidor</dt><dd>Um programa pequeno que fica ligado no meu computador e mantém o modelo de busca na memória, para a busca responder em menos de 1 segundo.</dd><dt>juiz</dt><dd>Um modelo (o Gemini, pelo programa agy) que confere se a nota citada sustenta a frase.</dd><dt>Obsidian</dt><dd>O programa de notas em que o vault é guardado.</dd><dt>skill</dt><dd>Um roteiro que o Claude Code segue quando eu o chamo, como /rag.</dd></dl></details>
+      <blockquote class="citacao">Para mim, no uso local, ele traz poucos benefícios.<small>O que escrevi em 08/11/2026, antes de repetir as conversas</small></blockquote>
+      <p><strong>O que os números mostram agora:</strong> o acerto empata. Nas conversas, que é como eu uso o Claude, o RAG gastou de 6% a 36% menos cota que o Grep (40% menos com 4 pedaços); nas perguntas soltas, gastou mais e demorou mais. A fonte por padrão também sai com uma linha de regra no Grep. Ainda não mandei medir o trabalho de manter o RAG (índice, modelo e servidor). A resposta que os números sustentam, portanto, não é “poucos benefícios”, e sim “depende do uso”: vale mais em conversas longas sobre as mesmas notas e não compensa em pergunta avulsa. A decisão final continua dependendo do teste de dia a dia.</p>
+      <p>Há outros casos em que o RAG pode ser o único jeito ou o melhor, e não mandei medi-los: o modelo não tem ferramenta de busca, a base chega a milhões de tokens ou o vocabulário das perguntas foge das notas (<a class="wiki" data-nota="quando-compensa" href="#quando-compensa">quando compensa</a>). A base só foi testada até 400 mil tokens.</p>
+      <p><strong>Decisão em curso:</strong> eu vou usar o RAG sempre no RPG por 1 a 2 semanas, com cada consulta registrada (tempo, buscas vazias, repetidas), para comparar a sensação do dia a dia com o que foi medido.</p>
+
+      <div class="aviso">
+        <h3>Limites desta pesquisa</h3>
+        <ul>
+          <li>Um caso só: o meu vault de RPG, com 72 notas. Em outro tipo de base o resultado pode ser outro.</li>
+          <li>A maioria dos testes rodou uma vez, com 10 a 18 perguntas, então o acaso ainda pesa. As conversas da missão rodaram 3 vezes por jeito, sempre a mesma missão.</li>
+          <li>As notas extras das bases grandes são de outros assuntos, distrações fáceis. Notas muito parecidas entre si seriam mais difíceis para o Grep.</li>
+          <li>O juiz das fontes é um modelo (o Gemini). O Claude conferiu à mão só as afirmações que ele marcou; as outras não foram conferidas por pessoa.</li>
+          <li>400 mil tokens ainda é pouco. Bases de milhões de tokens não foram testadas.</li>
+          <li>A correção das conversas foi feita sabendo qual jeito era qual: não foi cega.</li>
+          <li>O tempo de cada base grande vem de uma rodada só por jeito. Não sei o quanto varia de uma vez para outra.</li>
+          <li>Os registros brutos de 13 agentes ainda não foram exportados (<a class="wiki" data-nota="metodo" href="#metodo">método</a>).</li>
+        </ul>
+      </div>
+
+      <h3>O que ainda falta</h3>
+      <ul class="lista">
+        <li>Teste de dia a dia, de 1 a 2 semanas <span class="estado andamento">em andamento</span></li>
+        <li>Repetir as provas 3 vezes para medir o acaso (feito só na conversa da missão) <span class="estado andamento">em andamento</span></li>
+        <li>Testar o link que abre a nota direto no Obsidian <span class="estado">pendente</span></li>
+        <li>Usar as skills /rag e /rag-montar em uma base nova <span class="estado">pendente</span></li>
+        <li>Exportar os registros brutos dos agentes que ficaram fora do arquivo <span class="estado">pendente</span></li>
+      </ul>
+      <h3>Referências</h3>
+      <ul class="lista">
+        <li>Mensh B, Kording K (2017). Ten simple rules for structuring papers. PLoS Computational Biology. <a href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1005619">link</a></li>
+        <li>Ten Simple Rules for Better Figures. PLoS Computational Biology. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4161295/">link</a></li>
+        <li>Guidelines for Empirical Studies in Software Engineering involving Large Language Models (arXiv 2508.15503). <a href="https://arxiv.org/html/2508.15503">link</a></li>
+        <li>Helping doctors and patients make sense of health statistics. <a href="https://spds.uni-konstanz.de/en/node/1118">link</a></li>
+        <li>Appleton M. A Brief History &amp; Ethos of the Digital Garden. <a href="https://maggieappleton.com/garden-history">link</a></li>
+        <li>Matuschak A. Evergreen notes should be atomic. <a href="https://notes.andymatuschak.org/Evergreen_notes_should_be_atomic">link</a></li>
+      </ul>
+      <footer>Rascunho vivo, atualizado em 09/11/2026. Dados do projeto rag-rpg (etapa3, comparação, base maior). Tudo gratuito: Claude Code, agy e modelo local, nenhuma API paga.</footer>
+    
+      <h3>Para repetir no seu caso</h3>
+      <p>Transformei o roteiro desta pesquisa em duas skills do Claude Code. A <strong>/rag</strong> mede, na sua base de notas, o Grep, o Grep com a regra de fonte, o RAG e colar tudo no pedido, e mostra os números para você escolher. Se você escolher o RAG, a <strong>/rag-montar</strong> monta a receita testada aqui: índice, servidor e atualização automáticos e o registro de uso. As duas foram feitas a partir de um caso só, o meu vault de RPG, e ainda não as usei em outra base. O passo a passo para fazer à mão está em <a class="wiki" data-nota="medir-no-seu-caso" href="#medir-no-seu-caso">medir no seu caso</a>.</p>
+    </section>
+  </main>
+  <aside class="dir" aria-label="Contexto da nota">
+    <div class="painel-lat"><h3>Grafo</h3><svg id="graf-jardim" viewBox="0 0 300 300" role="img" aria-label="Grafo das notas e dos links entre elas"></svg></div>
+    <div class="painel-lat" id="toc-box"><h3>Nesta nota</h3><ul id="toc"></ul></div>
+    <div class="painel-lat" id="back-box"><h3>Links que chegam aqui</h3><ul id="back"></ul></div>
+  </aside>
+</div>
+
+<script>
+/* ===== Dados ===== */
+const FICHAS = [
+  { id: "grep", classe: "f-grep", nome: "Grep puro", sub: "Busca por palavras, sem regra de fonte",
+    acerto: ["15 a 16 de 18", "perguntas difíceis"], fonte: ["0%", "das afirmações, sem pedir"], manter: ["Nada", "já vem no Claude Code"],
+    cen: { longa: ["395 mil por mensagem, somando cada passo", "17,9 s por mensagem"], solta: ["84 mil no fim de um teste de 10", "32 s por teste"], grande: ["93 mil no fim de um teste de 10", "45 s por teste"] } },
+  { id: "regra", classe: "f-regra", nome: "Grep com regra de fonte", sub: "Uma linha fixa: sempre diga de qual nota veio",
+    acerto: null, fonte: ["100%", "das afirmações, sem pedir"], manter: ["Uma linha", "no CLAUDE.md"],
+    cen: { longa: null, solta: null, grande: null } },
+  { id: "rag", classe: "f-rag", nome: "RAG", sub: "Índice local, busca por palavra e por sentido",
+    acerto: ["16 de 18", "perguntas difíceis"], fonte: ["98%", "das afirmações, sem pedir"], manter: ["Índice, modelo e servidor", "automáticos: ligam e se atualizam sozinhos"],
+    cen: { longa: ["304 mil por mensagem, somando cada passo", "19,0 s por mensagem"], solta: ["133 mil no fim de um teste de 10", "53 s por teste"], grande: ["124 mil no fim de um teste de 10", "65 s por teste"] } }
+];
+const CENARIOS = {
+  longa: "Conversa longa, mensagens soltas", solta: "Pergunta solta, 150 mil", grande: "Pergunta solta, 400 mil"
+};
+const ACERTO = {
+  conversas: { rot: "Conversas com erros de propósito", total: 64, un: "de 64 mensagens",
+    barras: [["Grep", 62, "g"], ["RAG", 62, "r"]],
+    leg: "11 conversas com erros de propósito: premissa falsa, pressão, nomes parecidos, apelidos, notas que se contradizem. Nenhum jeito aceitou afirmação falsa nem inventou nome." },
+  dificeis: { rot: "Perguntas difíceis", total: 18, un: "de 18 perguntas",
+    barras: [["Grep", 15, "g"], ["RAG", 16, "r"]],
+    leg: "Perguntas sem palavra em comum e \"já tem algo sobre X?\". O Grep teve mais 2 parciais, e uma resposta de alvo diferente mas válido. O RAG errou por omissão." },
+  base: { rot: "Base maior", total: 10, un: "de 10 perguntas",
+    barras: [["Grep, 150 mil", 10, "g"], ["RAG, 150 mil", 9.5, "r"], ["Grep, 400 mil", 10, "g"], ["RAG, 400 mil", 9, "r"]],
+    leg: "Vault do RPG misturado a notas de outros assuntos. No RAG a nota vazia do Borin saiu como \"sem nota própria\" em uma das respostas, por isso 9,5. No RAG de 400 mil, \"tem algum npc que briga com papel?\" saiu como \"não consta\", mesmo repetindo a busca: o Sr. K não veio, por isso 9." }
+};
+const BUSCA = {
+  pedaços: { rot: "Quantos pedaços a busca devolve", total: 100, un: "de cada 100 perguntas",
+    barras: [["5 pedaços", 68, "r"], ["8 pedaços", 78, "r"], ["12 pedaços", 86, "r"], ["20 pedaços", 96, "r"]],
+    leg: "Cada barra: em quantas de 100 perguntas a nota certa veio entre os pedaços devolvidos." }
+};
+const TEMPO = [
+  { rot: "11 conversas", g: 6.2, r: 7.9 }, { rot: "Conversa longa", g: 17.9, r: 19.0 },
+  { rot: "Solta 150 mil", g: 32, r: 53 }, { rot: "Solta 400 mil", g: 45, r: 65 }
+];
+const TESTES = [
+  { teste: "Colar o vault inteiro no pedido", data: "2026-11-07", res: "27 de 27 nos detalhes e 32 de 33 nas relações. Gasta 182.710 tokens e 93 s por lote.", tipos: ["acerto", "cota"] },
+  { teste: "Só a pergunta, sem acesso às notas", data: "2026-11-07", res: "0 de 27: 37 respostas \"não sei\", nenhuma inventada.", tipos: ["acerto"] },
+  { teste: "Pergunta e Grep na pasta", data: "2026-11-07", res: "27 de 27 e 32 de 33, igual a colar tudo. 471 mil tokens nas 37 perguntas.", tipos: ["acerto", "cota"] },
+  { teste: "Confusão de entidades (Igreja e Ordem)", data: "2026-11-07", res: "14 de 14 colando tudo e 14 de 14 com Grep. O caso real de 25/10 não se repetiu.", tipos: ["acerto"] },
+  { teste: "Busca do RAG sozinha (46 perguntas)", data: "2026-11-08", res: "Acha 78% das notas certas com 8 pedaços, 86% com 12 e 96% com 20.", tipos: ["acerto", "ajuste"] },
+  { teste: "11 conversas com erros de propósito", data: "2026-11-08", res: "62 de 64 nos dois jeitos. RAG 27% mais barato na 1ª versão e 6% mais barato com a regra de buscar as duas fontes.", tipos: ["acerto", "cota", "tempo"] },
+  { teste: "Conversa longa, mensagens soltas", data: "2026-11-08", res: "Divergências achadas: 12 de 12 (Grep) e 11 de 12 (RAG). RAG 23% mais barato, mesmo tempo. Repetida 3 vezes por jeito: 36% mais barato.", tipos: ["acerto", "cota", "tempo"] },
+  { teste: "18 perguntas difíceis", data: "2026-11-08", res: "Grep 15 a 16 certas, RAG 16.", tipos: ["acerto"] },
+  { teste: "Fusão por posição contra soma de notas", data: "2026-11-08", res: "89 contra 86 de cada 100 notas achadas; sem palavra em comum, 79 contra 57 (12 pedaços).", tipos: ["ajuste"] },
+  { teste: "LlamaIndex com Chroma", data: "2026-11-08", res: "Com pedaços do mesmo tamanho: 79, 57 e 74 contra 89, 79 e 83 da versão feita à mão. Perdeu as 3 notas vazias.", tipos: ["ajuste", "acerto"] },
+  { teste: "Fonte nas respostas (34 conversas)", data: "2026-11-08", res: "1.340 afirmações: fonte apontada em 91% a 99%, e confere em 95% a 100%. Menos de 1% de fonte errada.", tipos: ["fonte"] },
+  { teste: "Fonte sem pedir (6 perguntas)", data: "2026-11-08", res: "Grep puro 0 de 46, RAG 46 de 47, Grep com regra fixa 36 de 36.", tipos: ["fonte"] },
+  { teste: "Base de 150 e 400 mil tokens", data: "2026-11-08", res: "Grep 10 de 10 nos dois; RAG 9,5 e 9. Com o servidor do RAG ligado e aquecido e um agente por vez: RAG de 33% a 59% mais caro em tokens e de 45% a 66% mais lento por teste.", tipos: ["acerto", "cota", "tempo", "base grande"] },
+  { teste: "Conversa da missão, 3 vezes por jeito", data: "2026-11-08", res: "RAG 36% mais barato (352 mil contra 551 mil por mensagem). Os 3 RAG ficaram abaixo dos 3 Grep.", tipos: ["acerto", "cota"] },
+  { teste: "RAG com 8 e com 4 pedaços, vault de 150 mil", data: "2026-11-08", res: "4 pedaços: 98 mil tokens, perto do Grep (84 mil). 8 pedaços: 142 mil. Acerto igual, 9,5 de 10.", tipos: ["acerto", "cota", "ajuste"] },
+  { teste: "Conversa da missão com 4 pedaços, 3 vezes", data: "2026-11-09", res: "330 mil por mensagem: 40% menos que o Grep e 6% menos que com 12 pedaços, dentro da variação. Mesmas divergências achadas.", tipos: ["acerto", "cota", "ajuste"] }
+];
+const LINHA = [
+  ["07/11", "A prova", "51 perguntas em três tipos (detalhe, relação, confusão), com gabarito conferido nas notas e revisado por mim."],
+  ["07/11", "Linhas de base", "Colar tudo, só a pergunta e pergunta com Grep. O Grep já acerta tanto quanto colar tudo."],
+  ["07/11", "O RAG à mão", "Pedaços por seção, busca por palavra feita à mão e modelo de busca local."],
+  ["08/11", "Primeiros testes", "Busca com 96% de acerto com 20 pedaços e 11 conversas com erros de propósito: empate em acerto."],
+  ["08/11", "Busca por nome e servidor", "A busca por nome acha 19 de 19 notas. O servidor tira 8 segundos de cada consulta."],
+  ["08/11", "Perguntas difíceis", "Sem palavra em comum e \"já tem algo?\". A fusão por posição e o aviso de nota vazia levam o RAG de 11 para 16 de 18."],
+  ["08/11", "Atualização automática", "O índice confere as notas antes de cada busca e refaz só a que mudou, em 0,17 s."],
+  ["08/11", "Biblioteca pronta", "LlamaIndex com Chroma acerta menos com pedaços do mesmo tamanho e exige um modelo pago para juntar as buscas."],
+  ["08/11", "Fontes", "1.340 afirmações conferidas. Sem pedir fonte, o Grep puro tem 0% e o RAG 98%."],
+  ["08/11", "Base maior", "Com 150 e 400 mil tokens o Grep mantém acerto, cota e tempo, mesmo com o servidor do RAG ligado e aquecido. A vantagem esperada do RAG não aparece."],
+  ["08/11", "Conclusão e skills", "Nasce a skill /rag, que mede as opções e deixa a escolha com o usuário, e a /rag-montar, que monta a receita."],
+  ["08/11", "Tempo refeito", "Com o servidor ligado e aquecido e um agente por vez, o RAG ainda levou de 45% a 66% mais tempo que o Grep nas bases de 150 e 400 mil."],
+  ["08/11", "Conversa repetida", "A conversa da missão, 3 vezes por jeito: RAG 36% mais barato. Erro meu corrigido: o teste de 11 conversas estava com o sinal trocado; o RAG gastou 6% menos, não 6% mais."],
+  ["09/11", "RAG enxuto", "Com 4 pedaços por busca, o RAG gastou 6% menos que com 12 numa conversa, dentro da variação, e ficou perto do Grep numa pergunta solta."],
+  ["Agora", "Teste de dia a dia", "Eu uso o RAG sempre no RPG por 1 a 2 semanas, com cada consulta registrada."]
+];
+
+/* ===== Utilidades ===== */
+const NS = "http://www.w3.org/2000/svg";
+const $ = (s, r = document) => r.querySelector(s);
+const fmt = (n) => String(n).replace(".", ",");
+const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+
+/* ===== Tema ===== */
+const raiz = document.documentElement;
+try { const t = localStorage.getItem("tema-A-caderno-de-campo"); if (t === "dark" || t === "light") raiz.setAttribute("data-theme", t); } catch (e) {}
+$("#tema").addEventListener("click", () => {
+  const escuro = raiz.getAttribute("data-theme") === "dark" ||
+    (!raiz.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  const novo = escuro ? "light" : "dark";
+  raiz.setAttribute("data-theme", novo);
+  try { localStorage.setItem("tema-A-caderno-de-campo", novo); } catch (e) {}
+});
+
+/* ===== Dica flutuante ===== */
+const dica = $("#dica");
+function mostrar(el, x, y) {
+  dica.textContent = el.getAttribute("data-dica");
+  dica.style.display = "block";
+  const w = dica.offsetWidth, h = dica.offsetHeight;
+  dica.style.left = Math.max(8, Math.min(x + 14, innerWidth - w - 8)) + "px";
+  dica.style.top = Math.max(8, Math.min(y + 14, innerHeight - h - 8)) + "px";
+}
+document.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-dica]"); if (el) mostrar(el, e.clientX, e.clientY); });
+document.addEventListener("mousemove", (e) => { const el = e.target.closest("[data-dica]"); if (el) mostrar(el, e.clientX, e.clientY); else dica.style.display = "none"; });
+document.addEventListener("mouseout", (e) => { if (e.target.closest("[data-dica]")) dica.style.display = "none"; });
+document.addEventListener("focusin", (e) => { const el = e.target.closest("[data-dica]"); if (el) { const r = el.getBoundingClientRect(); mostrar(el, r.left, r.top); } });
+document.addEventListener("focusout", () => { dica.style.display = "none"; });
+
+/* ===== Fichas ===== */
+let cenario = "longa";
+function desenharFichas() {
+  const alvo = $("#fichas-lista");
+  alvo.innerHTML = FICHAS.map((f) => {
+    const cen = f.cen[cenario];
+    const nm = '<dd class="nm">não medido neste cenário</dd>';
+    return `<article class="ficha ${f.classe}">
+      <h3>${f.nome}</h3><p class="sub">${f.sub}</p>
+      <dl>
+        <div class="linha"><dt>Acerto</dt>${f.acerto ? `<dd class="num">${f.acerto[0]}<small>${f.acerto[1]}</small></dd>` : nm.replace("neste cenário", "nesta prova")}</div>
+        <div class="linha"><dt>Fonte sem pedir</dt><dd class="num">${f.fonte[0]}<small>${f.fonte[1]}</small></dd></div>
+        <div class="linha"><dt>Cota</dt>${cen ? `<dd class="num">${cen[0]}</dd>` : nm}</div>
+        <div class="linha"><dt>Tempo</dt>${cen ? `<dd class="num">${cen[1]}</dd>` : nm}</div>
+        <div class="linha"><dt>Para manter</dt><dd>${f.manter[0]}<small>${f.manter[1]}</small></dd></div>
+      </dl></article>`;
+  }).join("");
+}
+document.querySelectorAll(".cenarios button").forEach((b) => b.addEventListener("click", () => {
+  cenario = b.dataset.cen;
+  document.querySelectorAll(".cenarios button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  desenharFichas();
+}));
+
+/* ===== Gráficos ===== */
+const EST_ = () => innerWidth < 700;
+function svg(w, h, corpo, rotulo) {
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(rotulo)}">${corpo}</svg>`;
+}
+function barrasH(linhas, total, un, rotulo, animar) {
+  const N = EST_(), W = N ? 380 : 720, esq = N ? 150 : 190, larg = N ? 180 : 440, alt = 40, topo = 8;
+  const H = topo + linhas.length * alt + 34;
+  let s = "";
+  [0, 0.25, 0.5, 0.75, 1].forEach((p) => {
+    const x = esq + p * larg;
+    s += `<line class="grade" x1="${x}" x2="${x}" y1="${topo}" y2="${H - 28}"/><text class="ts" x="${x}" y="${H - 8}" text-anchor="middle">${fmt(+(p * total).toFixed(1))}</text>`;
+  });
+  linhas.forEach((l, i) => {
+    const y = topo + i * alt + 6, w = Math.max(2, (l.v / total) * larg);
+    s += `<text class="t" x="${esq - 12}" y="${y + 17}" text-anchor="end">${esc(l.rot)}</text>
+      <rect class="b-${l.c}${animar ? " cresce" : ""}" x="${esq}" y="${y}" width="${w}" height="24" rx="3" tabindex="0" data-dica="${esc(l.dica || l.rot + ": " + fmt(l.v) + " " + un)}"/>
+      <text class="v" x="${esq + w + 8}" y="${y + 17}">${fmt(l.v)}${l.suf || ""}</text>`;
+  });
+  return svg(W, H, s, rotulo);
+}
+function barrasDivergentes(linhas, min, max, rotulo) {
+  const N = EST_(), W = N ? 400 : 720, esq = N ? 200 : 250, larg = N ? 165 : 420, alt = 40, topo = 8, H = topo + linhas.length * alt + 34;
+  const x0 = esq + ((0 - min) / (max - min)) * larg;
+  let s = "";
+  for (let t = min; t <= max; t += 30) {
+    const x = esq + ((t - min) / (max - min)) * larg;
+    s += `<line class="grade" x1="${x}" x2="${x}" y1="${topo}" y2="${H - 28}"/><text class="ts" x="${x}" y="${H - 8}" text-anchor="middle">${t > 0 ? "+" : ""}${t}%</text>`;
+  }
+  s += `<line class="eixo" x1="${x0}" x2="${x0}" y1="${topo}" y2="${H - 28}"/>`;
+  linhas.forEach((l, i) => {
+    const y = topo + i * alt + 6, xv = esq + ((l.v - min) / (max - min)) * larg;
+    const x = Math.min(x0, xv), w = Math.max(2, Math.abs(xv - x0));
+    s += `<text class="t" x="${esq - 12}" y="${y + 17}" text-anchor="end">${esc(l.rot)}</text>
+      <rect class="${l.v < 0 ? "b-bom" : "b-ruim"}" x="${x}" y="${y}" width="${w}" height="24" rx="3" tabindex="0" data-dica="${esc(l.rot + ": " + (l.v > 0 ? "+" : "") + l.v + "% de cota. " + (l.v < 0 ? "O RAG gastou menos." : "O RAG gastou mais."))}"/>
+      <text class="v" x="${l.v < 0 ? x0 + 8 : x + w + 8}" y="${y + 17}" text-anchor="start">${l.v > 0 ? "+" : ""}${l.v}%</text>`;
+  });
+  return svg(W, H, s, rotulo);
+}
+function linhas(cats, series, min, max, passo, unidadeY, rotulo, fmtV) {
+  const N = EST_(), W = N ? 380 : 720, H = N ? 260 : 300, e = N ? 46 : 54, d = N ? 20 : 30, t = 24, b = 54;
+  const folga = N ? 24 : 36;
+  const px = (i) => cats.length === 1 ? e + (W - e - d) / 2 : e + folga + (i / (cats.length - 1)) * (W - e - d - 2 * folga);
+  const py = (v) => t + (1 - (v - min) / (max - min)) * (H - t - b);
+  let s = "";
+  for (let v = min; v <= max; v += passo) {
+    s += `<line class="grade" x1="${e}" x2="${W - d}" y1="${py(v)}" y2="${py(v)}"/><text class="ts" x="${e - 8}" y="${py(v) + 4}" text-anchor="end">${v}${unidadeY}</text>`;
+  }
+  cats.forEach((c, i) => { s += `<text class="t" x="${px(i)}" y="${H - 22}" text-anchor="middle">${esc(c)}</text>`; });
+  series.forEach((sr) => {
+    const pts = sr.v.map((v, i) => `${px(i)},${py(v)}`).join(" ");
+    s += `<polyline class="linha-ser l-${sr.c}" points="${pts}"/>`;
+    sr.v.forEach((v, i) => {
+      s += `<circle class="p-${sr.c} marca-dado" cx="${px(i)}" cy="${py(v)}" r="7" tabindex="0" data-dica="${esc(sr.nome + ", " + cats[i] + ": " + fmtV(v))}"/>
+        <text class="v" x="${px(i)}" y="${py(v) - 14}" text-anchor="middle">${fmtV(v)}</text>`;
+    });
+  });
+  return svg(W, H, s, rotulo);
+}
+function barrasAgrupadas(dados, rotulo) {
+  const N = EST_(), W = N ? 380 : 720, H = N ? 260 : 300, e = N ? 46 : 54, d = 20, t = 28, b = 54, max = 80;
+  const py = (v) => t + (1 - v / max) * (H - t - b);
+  const gw = (W - e - d) / dados.length, bw = N ? 22 : 34;
+  let s = "";
+  for (let v = 0; v <= max; v += 20) s += `<line class="grade" x1="${e}" x2="${W - d}" y1="${py(v)}" y2="${py(v)}"/><text class="ts" x="${e - 8}" y="${py(v) + 4}" text-anchor="end">${v} s</text>`;
+  dados.forEach((r, i) => {
+    const cx = e + gw * i + gw / 2;
+    [["g", r.g, -bw - 3], ["r", r.r, 3]].forEach(([c, v, off]) => {
+      s += `<rect class="b-${c}" x="${cx + off}" y="${py(v)}" width="${bw}" height="${py(0) - py(v)}" rx="3" tabindex="0" data-dica="${esc((c === "g" ? "Grep" : "RAG") + ", " + r.rot + ": " + fmt(v) + " s")}"/>
+        <text class="v" x="${cx + off + bw / 2}" y="${py(v) - 7}" text-anchor="middle">${fmt(v)}</text>`;
+    });
+    s += `<text class="t" x="${cx}" y="${H - 22}" text-anchor="middle">${esc(r.rot)}</text>`;
+  });
+  return svg(W, H, s, rotulo);
+}
+function abas(idAbas, defs, ativo, aoMudar) {
+  const alvo = $(idAbas);
+  alvo.innerHTML = Object.keys(defs).map((k) => `<button type="button" role="tab" data-k="${k}" aria-selected="${k === ativo}">${defs[k].rot}</button>`).join("");
+  alvo.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    alvo.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+    aoMudar(b.dataset.k, true);
+  }));
+}
+function desenharAcerto(k, animar) {
+  const d = ACERTO[k];
+  $("#graf-acerto").innerHTML = barrasH(d.barras.map((b) => ({ rot: b[0], v: b[1], c: b[2], suf: " de " + d.total })), d.total, d.un, "Acertos: " + d.rot, animar);
+  $("#leg-acerto").textContent = d.leg;
+}
+function desenharBusca(k) {
+  const d = BUSCA[k];
+  $("#graf-busca").innerHTML = barrasH(d.barras.map((b) => ({ rot: b[0], v: b[1], c: b[2], suf: "" })), d.total, d.un, "Busca sozinha: " + d.rot, true);
+  $("#leg-busca").textContent = d.leg;
+}
+
+/* ===== Tabela ===== */
+let ord = { campo: "data", dir: 1 }, filtro = "todos";
+function desenharTabela() {
+  const q = $("#busca").value.trim().toLowerCase();
+  let lista = TESTES.filter((t) => (filtro === "todos" || t.tipos.includes(filtro)) && (!q || (t.teste + " " + t.res + " " + t.tipos.join(" ")).toLowerCase().includes(q)));
+  lista = lista.slice().sort((a, b) => (a[ord.campo] < b[ord.campo] ? -1 : a[ord.campo] > b[ord.campo] ? 1 : 0) * ord.dir);
+  $("#corpo-tabela").innerHTML = lista.map((t) => `<tr><td><strong>${esc(t.teste)}</strong></td><td class="d">${t.data.slice(8, 10)}/${t.data.slice(5, 7)}</td><td>${esc(t.res)}</td><td>${t.tipos.map((x) => `<span class="pilula">${x}</span>`).join("")}</td></tr>`).join("");
+  $("#vazio-tabela").style.display = lista.length ? "none" : "block";
+  ["teste", "data"].forEach((c) => $("#th-" + c).setAttribute("aria-sort", ord.campo === c ? (ord.dir === 1 ? "ascending" : "descending") : "none"));
+}
+function montarFiltros() {
+  const tipos = ["todos", "acerto", "fonte", "cota", "tempo", "ajuste", "base grande"];
+  $("#filtros").innerHTML = tipos.map((t) => `<button type="button" data-f="${t}" aria-pressed="${t === filtro}">${t}</button>`).join("");
+  $("#filtros").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    filtro = b.dataset.f;
+    $("#filtros").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    desenharTabela();
+  }));
+}
+document.querySelectorAll("th button").forEach((b) => b.addEventListener("click", () => {
+  const c = b.dataset.ord;
+  ord = { campo: c, dir: ord.campo === c ? -ord.dir : 1 };
+  desenharTabela();
+}));
+$("#busca").addEventListener("input", desenharTabela);
+
+/* ===== Linha do tempo ===== */
+$("#tempo").innerHTML = LINHA.map((l) => `<li class="${l[0] === "Agora" ? "agora" : ""}"><time>${l[0]}</time><h3>${l[1]}</h3><p>${l[2]}</p></li>`).join("");
+
+/* ===== Copiar a regra ===== */
+$("#copiar").addEventListener("click", async () => {
+  const msg = $("#copiado");
+  try { await navigator.clipboard.writeText($("#regra-texto").textContent); msg.textContent = "Copiado."; }
+  catch (e) { msg.textContent = "Não consegui copiar. Selecione o texto e copie."; }
+  setTimeout(() => { msg.textContent = ""; }, 2500);
+});
+
+/* ===== Barra de progresso e menu ativo ===== */
+const secoes = [...document.querySelectorAll("main section")], links = [...document.querySelectorAll("nav.lateral a")];
+function aoRolar() {
+  const topo = scrollY, total = document.documentElement.scrollHeight - innerHeight;
+  $("#progresso").style.width = (total > 0 ? (topo / total) * 100 : 0) + "%";
+  let atual = secoes[0].id;
+  secoes.forEach((s) => { if (s.getBoundingClientRect().top < innerHeight * 0.35) atual = s.id; });
+  links.forEach((a) => a.classList.toggle("ativo", a.getAttribute("href") === "#" + atual));
+}
+addEventListener("scroll", aoRolar, { passive: true });
+
+/* ===== Início ===== */
+desenharFichas();
+abas("#abas-acerto", ACERTO, "conversas", desenharAcerto); desenharAcerto("conversas", false);
+desenharBusca("pedaços");
+$("#graf-fonte").innerHTML = barrasH([
+  { rot: "Grep puro", v: 0, c: "g", suf: "%", dica: "Grep puro: 0 de 46 afirmações com fonte" },
+  { rot: "RAG", v: 98, c: "r", suf: "%", dica: "RAG: 46 de 47 afirmações com fonte (98%)" },
+  { rot: "Grep com regra fixa", v: 100, c: "g", suf: "%", dica: "Grep com regra fixa: 36 de 36 afirmações com fonte (100%)" }
+], 100, "%", "Afirmações com fonte, sem pedir", false);
+$("#graf-cota").innerHTML = barrasDivergentes([
+  { rot: "Conversa numa missão, 3 vezes", v: -36 }, { rot: "Conversa numa missão, 1ª medida", v: -23 }, { rot: "11 conversas com erros", v: -6 },
+  { rot: "Base de 400 mil, pergunta solta", v: 33 }, { rot: "Base de 150 mil, pergunta solta", v: 59 },
+  { rot: "“Já tem algo sobre X?”", v: 59 }, { rot: "Palavras diferentes", v: 66 }
+], -60, 90, "Cota do RAG contra o Grep, por tipo de uso");
+$("#graf-tempo").innerHTML = barrasAgrupadas(TEMPO, "Tempo por resposta, Grep e RAG");
+$("#graf-escala").innerHTML = linhas(["150 mil", "400 mil"], [
+  { nome: "Grep", c: "g", v: [84, 93] }, { nome: "RAG", c: "r", v: [133, 124] }
+], 0, 150, 50, "", "Cota por pergunta conforme a base cresce", (v) => v + " mil");
+montarFiltros(); desenharTabela(); aoRolar();
+</script>
+
+<div id="pop" role="tooltip"></div>
+<div id="modal-busca" role="dialog" aria-label="Buscar nas notas" aria-modal="true">
+  <div class="caixa-busca"><input id="campo-busca" type="search" placeholder="Buscar nas notas" autocomplete="off"><ul id="res-busca"></ul></div>
+</div>
+<script>
+(function () {
+const NOTAS = [
+ {
+  "id": "inicio",
+  "rotulo": "Comece aqui",
+  "titulo": "O que descobri sobre usar RAG ou só a busca por palavras, e como você pode conferir no seu caso",
+  "pasta": "Início",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "rag",
+   "grep",
+   "entrada"
+  ],
+  "liga": [
+   "topo",
+   "fonte",
+   "cota",
+   "escala",
+   "quando-compensa",
+   "medir-no-seu-caso",
+   "acerto",
+   "mao-contra-biblioteca",
+   "metodo",
+   "tabela",
+   "feito-a-mao",
+   "como",
+   "linha",
+   "conclusao"
+  ],
+  "desc": "a entrada do jardim",
+  "status": "um caso só (as minhas 72 notas de RPG), cada teste rodou uma vez. Ninguém de fora revisou. Falta o teste de 1 a 2 semanas de uso.",
+  "ctx": "",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "topo",
+  "rotulo": "Resposta",
+  "titulo": "O RAG empata no acerto e gasta menos cota em conversa; em pergunta solta, gasta mais",
+  "pasta": "Início",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "rag",
+   "grep",
+   "resumo"
+  ],
+  "liga": [
+   "fichas",
+   "acerto",
+   "fonte",
+   "cota",
+   "metodo",
+   "feito-a-mao",
+   "conclusao",
+   "quando-compensa",
+   "medir-no-seu-caso"
+  ],
+  "desc": "a resposta curta",
+  "status": "um caso só (as minhas 72 notas de RPG, cerca de 66 mil tokens), cada teste rodou uma vez, 13 testes em 07 e 08/11/2026. Ninguém de fora revisou. Falta o teste de 1 a 2 semanas de uso.",
+  "ctx": "",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "quando-compensa",
+  "rotulo": "Quando compensa",
+  "titulo": "Eu montaria um RAG se você conversa muito sobre as mesmas notas, se a IA não tiver busca, se a base for enorme ou se as perguntas usarem outras palavras",
+  "pasta": "Início",
+  "est": "semente",
+  "plantada": "08/11/2026",
+  "tags": [
+   "rag",
+   "decisão"
+  ],
+  "liga": [
+   "topo",
+   "escala",
+   "busca-sozinha",
+   "acerto",
+   "medir-no-seu-caso",
+   "conclusao"
+  ],
+  "desc": "os quatro casos em que eu pensaria em RAG",
+  "status": "o primeiro caso (conversas) mandei medir, em um cenário, 3 vezes por jeito; os outros três são hipóteses. O limite que mandei testar de tamanho de base é 400 mil tokens.",
+  "pergunta": "Em que casos faria sentido montar um RAG em vez de usar só a busca por palavras?",
+  "ctx": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "medir-no-seu-caso",
+  "rotulo": "Medir no seu caso",
+  "titulo": "Dá para saber se o RAG compensa nas suas notas comparando quatro jeitos com as suas próprias perguntas",
+  "pasta": "Início",
+  "est": "semente",
+  "plantada": "08/11/2026",
+  "tags": [
+   "método",
+   "decisão"
+  ],
+  "liga": [
+   "acerto",
+   "fonte",
+   "cota",
+   "escala",
+   "quando-compensa",
+   "metodo"
+  ],
+  "desc": "o roteiro de medição, passo a passo",
+  "status": "este roteiro vem da skill /rag, validada em um caso só (as minhas notas de RPG). Em outro tipo de base o resultado pode ser outro.",
+  "pergunta": "Como eu descubro, nas minhas notas, se um RAG vale o trabalho?",
+  "ctx": "",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "fichas",
+  "rotulo": "Fichas",
+  "titulo": "Cada jeito de consultar tem um custo e um ganho diferentes",
+  "pasta": "Comparação",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "grep",
+   "rag",
+   "cota",
+   "tempo"
+  ],
+  "liga": [
+   "acerto",
+   "fonte",
+   "cota",
+   "achados"
+  ],
+  "desc": "o que cada jeito deu e custou",
+  "status": "resume as notas de medição. Campo em itálico e tracejado é o que não foi medido. Valores “por mensagem” vêm de conversas longas; valores “por teste” vêm de um agente respondendo 10 perguntas.",
+  "ctx": "O detalhe de cada campo está em <a class=\"wiki\" data-nota=\"acerto\" href=\"#acerto\">acerto</a>, <a class=\"wiki\" data-nota=\"fonte\" href=\"#fonte\">fonte sem pedir</a>, <a class=\"wiki\" data-nota=\"cota\" href=\"#cota\">cota</a> e <a class=\"wiki\" data-nota=\"tempo-resposta\" href=\"#tempo-resposta\">tempo</a>.",
+  "pergunta": "",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "achados",
+  "rotulo": "Quem faz o quê",
+  "titulo": "O RAG achou pelo sentido e o Grep listou tudo que cita um nome",
+  "pasta": "Comparação",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "rag",
+   "grep",
+   "comparação"
+  ],
+  "liga": [
+   "acerto",
+   "fonte",
+   "escala",
+   "conclusao"
+  ],
+  "desc": "o que só um dos dois fez",
+  "status": "cada ponto é um exemplo tirado das respostas dos testes, não uma taxa.",
+  "ctx": "Os números por trás de cada ponto estão em <a class=\"wiki\" data-nota=\"acerto\" href=\"#acerto\">acerto</a>, <a class=\"wiki\" data-nota=\"fonte\" href=\"#fonte\">fonte sem pedir</a>, <a class=\"wiki\" data-nota=\"cota\" href=\"#cota\">cota</a> e <a class=\"wiki\" data-nota=\"escala\" href=\"#escala\">base maior</a>.",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "tabela",
+  "rotulo": "Todos os testes",
+  "titulo": "Dezesseis testes em três dias sustentam estes números",
+  "pasta": "Comparação",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "testes",
+   "dados"
+  ],
+  "liga": [
+   "metodo",
+   "linha",
+   "acerto",
+   "conclusao"
+  ],
+  "desc": "a tabela com os 16 testes",
+  "status": "16 linhas, de 07 a 09/11/2026. Cada linha é um teste; a maioria rodou uma vez e as conversas da missão rodaram 3 vezes por jeito.",
+  "ctx": "Quem respondeu e quem julgou está em <a class=\"wiki\" data-nota=\"metodo\" href=\"#metodo\">método</a>; a ordem dos testes, na <a class=\"wiki\" data-nota=\"linha\" href=\"#linha\">linha do tempo</a>.",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "acerto",
+  "rotulo": "Acerto",
+  "titulo": "Grep e RAG acertam quase o mesmo, mas erram em lugares diferentes",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "acerto",
+   "conversas"
+  ],
+  "liga": [
+   "busca-sozinha",
+   "achados",
+   "metodo",
+   "tabela"
+  ],
+  "desc": "acertos nos três tipos de prova",
+  "status": "18 perguntas difíceis e 11 conversas com erros de propósito, cada um rodou uma vez. A correção das respostas foi feita sabendo qual jeito era qual: não foi cega.",
+  "ctx": "O número empata, mas os erros diferem: o RAG erra por omissão (diz “não consta” para o que existe) e o Grep erra ao juntar várias notas. Exemplos em <a class=\"wiki\" data-nota=\"achados\" href=\"#achados\">quem faz o quê</a>. A busca do RAG sem IA no meio está em <a class=\"wiki\" data-nota=\"busca-sozinha\" href=\"#busca-sozinha\">busca sozinha</a>.",
+  "pergunta": "Quando os dois jeitos recebem as mesmas perguntas, quantas respostas cada um acerta?",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "busca-sozinha",
+  "rotulo": "Busca sozinha",
+  "titulo": "A busca do RAG traz a nota certa em 86 de cada 100 perguntas, com 12 pedaços",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "busca",
+   "trechos"
+  ],
+  "liga": [
+   "acerto",
+   "como",
+   "escala",
+   "tabela",
+   "mao-contra-biblioteca"
+  ],
+  "desc": "a busca traz a nota certa?",
+  "status": "46 perguntas. Mandei medir só a 1ª etapa do RAG, a busca, sem a IA. Não mede se a resposta final ficou certa.",
+  "ctx": "O que o assistente fez com esses pedaços está em <a class=\"wiki\" data-nota=\"acerto\" href=\"#acerto\">acerto</a>. A fusão por posição, que melhorou esta busca, está em <a class=\"wiki\" data-nota=\"como\" href=\"#como\">como foi montado</a>. O efeito de uma base maior está em <a class=\"wiki\" data-nota=\"escala\" href=\"#escala\">base maior</a>.",
+  "pergunta": "Quando eu faço uma pergunta, a busca do RAG traz a nota certa?",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "fonte",
+  "rotulo": "Fonte sem pedir",
+  "titulo": "Sem pedir, o RAG cita a fonte e o Grep só cita com uma regra",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "fonte",
+   "regra"
+  ],
+  "liga": [
+   "metodo",
+   "conclusao",
+   "fichas"
+  ],
+  "desc": "quem mostra a nota de origem sem ser pedido",
+  "status": "6 mensagens soltas, nenhuma menção a fonte, cada jeito respondeu uma vez. A fonte foi conferida por um modelo (o Gemini); o Claude conferiu à mão só as afirmações que ele marcou. As outras não foram conferidas por pessoa.",
+  "ctx": "Quem julgou e com qual versão está em <a class=\"wiki\" data-nota=\"metodo\" href=\"#metodo\">método</a>. O peso disso na decisão está na <a class=\"wiki\" data-nota=\"conclusao\" href=\"#conclusao\">conclusão</a>.",
+  "pergunta": "Quando ninguém pede a fonte, qual jeito mostra de qual nota veio cada afirmação?",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "cota",
+  "rotulo": "Cota",
+  "titulo": "Nas conversas o RAG gastou menos cota (de 6% a 36% menos); nas perguntas soltas, mais (de 33% a 66%)",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "cota",
+   "tokens"
+  ],
+  "liga": [
+   "fichas",
+   "tempo-resposta",
+   "escala",
+   "metodo"
+  ],
+  "desc": "tokens gastos, por tipo de uso",
+  "status": "Cota é quantos tokens o Claude usa. Contei de dois jeitos, que não se misturam: nas conversas, a soma de tudo o que ele leu em cada passo; nos testes de 8 a 10 perguntas, o tamanho que a conversa dele tinha no fim (conferi isso nos quatro testes de 150 e 400 mil tokens). Cada teste rodou uma vez, menos a conversa numa missão, que rodou 3 vezes por jeito. Valores aproximados. Mandei testar também o RAG com 8 e com 4 pedaços por busca.",
+  "ctx": "O gasto depende de quantas buscas o assistente faz. A base maior está em <a class=\"wiki\" data-nota=\"escala\" href=\"#escala\">base maior</a> e o tempo, em <a class=\"wiki\" data-nota=\"tempo-resposta\" href=\"#tempo-resposta\">tempo</a>.",
+  "pergunta": "Quantos tokens o RAG gasta a mais ou a menos que o Grep, em cada tipo de uso?",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "tempo-resposta",
+  "rotulo": "Tempo",
+  "titulo": "Mesmo com o servidor ligado, o RAG leva mais tempo em pergunta solta",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "tempo",
+   "servidor"
+  ],
+  "liga": [
+   "cota",
+   "escala",
+   "como",
+   "metodo"
+  ],
+  "desc": "segundos por resposta",
+  "status": "Tempo das bases de 150 e 400 mil medido de novo em 08/11/2026, com o servidor do RAG ligado e já aquecido (cada consulta leva 0,3 s) e um agente por vez. Uma rodada por jeito e tamanho. A primeira tentativa, com o servidor ainda esquentando e 4 agentes ao mesmo tempo, deu 39 e 42 s (Grep) e 77 e 68 s (RAG): foi descartada. As duas primeiras colunas do gráfico são por mensagem; as duas últimas, por teste de 10 perguntas.",
+  "ctx": "Sem o servidor, a consulta do RAG leva cerca de 8 s só para carregar o modelo; com ele, 0,3 s. Então a diferença que sobra vem do assistente: o RAG devolve mais texto por busca e ele gasta mais tempo lendo e escrevendo. O servidor está descrito em <a class=\"wiki\" data-nota=\"como\" href=\"#como\">como foi montado</a>.",
+  "pergunta": "Com o servidor ligado, quanto tempo cada jeito leva para responder?",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "escala",
+  "rotulo": "Base maior",
+  "titulo": "Até 400 mil tokens o Grep aguentou a base crescer",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "escala",
+   "base"
+  ],
+  "liga": [
+   "cota",
+   "busca-sozinha",
+   "conclusao",
+   "quando-compensa"
+  ],
+  "desc": "150 mil e 400 mil tokens",
+  "status": "10 perguntas difíceis, cada jeito e tamanho respondeu uma vez. As notas extras são de outros assuntos (distração fácil). 400 mil tokens ainda é pouco; milhões não foram testados.",
+  "ctx": "A busca do RAG sozinha também perdeu um pouco com a base maior nas perguntas sem palavra em comum: 79, 64 e 57 de cada 100 em 66 mil, 150 mil e 400 mil tokens (<a class=\"wiki\" data-nota=\"busca-sozinha\" href=\"#busca-sozinha\">busca sozinha</a>).",
+  "pergunta": "Quando a base cresce de 66 mil para 150 mil e 400 mil tokens, o que muda em cada jeito?",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "mao-contra-biblioteca",
+  "rotulo": "Contra a biblioteca",
+  "titulo": "A busca feita à mão achou mais notas que a biblioteca pronta em 2 de 3 tipos de pergunta",
+  "pasta": "Medição",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "biblioteca",
+   "busca"
+  ],
+  "liga": [
+   "feito-a-mao",
+   "busca-sozinha",
+   "tabela",
+   "metodo",
+   "conclusao"
+  ],
+  "desc": "feito à mão contra biblioteca pronta, com os dados",
+  "status": "46, 10 e 8 perguntas, só a busca (sem IA). Cada versão da biblioteca foi testada com uma configuração, sem afinar. Mostro a melhor das duas configurações em cada tipo de pergunta.",
+  "pergunta": "Quando a busca é feita à mão ou por uma biblioteca pronta, quantas das notas certas cada uma acha?",
+  "ctx": "O que cada peça da versão à mão faz está em <a class=\"wiki\" data-nota=\"feito-a-mao\" href=\"#feito-a-mao\">feito à mão</a>. A busca sozinha, em geral, está em <a class=\"wiki\" data-nota=\"busca-sozinha\" href=\"#busca-sozinha\">busca sozinha</a>.",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "metodo",
+  "rotulo": "Método",
+  "titulo": "Quem respondeu foi o claude-sonnet-5-5 e quem julgou as fontes foi o gemini-3.8-flash-high",
+  "pasta": "Processo",
+  "est": "broto",
+  "plantada": "08/11/2026",
+  "tags": [
+   "método",
+   "versões"
+  ],
+  "liga": [
+   "acerto",
+   "fonte",
+   "tabela",
+   "conclusao"
+  ],
+  "desc": "modelos, versões, textos e registros",
+  "status": "versões lidas dos registros do Claude Code, do agy e dos arquivos do projeto em 08/11/2026. Parâmetros de geração no padrão do Claude Code: nenhum foi alterado. O Claude executou os testes e escreveu o código; eu decidi o que testar.",
+  "ctx": "Os números que dependem desses modelos estão em <a class=\"wiki\" data-nota=\"acerto\" href=\"#acerto\">acerto</a> e <a class=\"wiki\" data-nota=\"fonte\" href=\"#fonte\">fonte sem pedir</a>; a lista de testes, em <a class=\"wiki\" data-nota=\"tabela\" href=\"#tabela\">todos os testes</a>.",
+  "pergunta": "",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "feito-a-mao",
+  "rotulo": "Feito à mão",
+  "titulo": "Mandei o Claude escrever o RAG à mão para eu aprender a técnica e só depois usar a biblioteca pronta, para comparar",
+  "pasta": "Processo",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "rag",
+   "à mão",
+   "biblioteca"
+  ],
+  "liga": [
+   "como",
+   "metodo",
+   "busca-sozinha",
+   "tabela",
+   "conclusao",
+   "mao-contra-biblioteca"
+  ],
+  "desc": "por que à mão e o que cada peça mudou",
+  "status": "descreve o código em 08/11/2026 (175 testes passando). Eu decidi as regras e o Claude escreveu o código, peça por peça.",
+  "ctx": "A comparação com a biblioteca pronta está em <a class=\"wiki\" data-nota=\"mao-contra-biblioteca\" href=\"#mao-contra-biblioteca\">a busca feita à mão contra a biblioteca</a>. O caminho de uma pergunta dentro do RAG está em <a class=\"wiki\" data-nota=\"como\" href=\"#como\">como foi montado</a>. As versões e os modelos estão em <a class=\"wiki\" data-nota=\"metodo\" href=\"#metodo\">método</a>.",
+  "pergunta": "",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "linha",
+  "rotulo": "Linha do tempo",
+  "titulo": "Em três dias vieram a prova, o RAG à mão, os ajustes e as conversas repetidas",
+  "pasta": "Processo",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "processo"
+  ],
+  "liga": [
+   "como",
+   "feito-a-mao",
+   "tabela",
+   "conclusao"
+  ],
+  "desc": "o que foi feito e quando",
+  "status": "datas conforme as notas de correção do projeto.",
+  "ctx": "Cada marco tem suas medidas em <a class=\"wiki\" data-nota=\"tabela\" href=\"#tabela\">todos os testes</a>; o RAG em si está em <a class=\"wiki\" data-nota=\"como\" href=\"#como\">como foi montado</a>.",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ },
+ {
+  "id": "como",
+  "rotulo": "Como foi montado",
+  "titulo": "O RAG busca por palavra e por sentido e junta as duas por posição",
+  "pasta": "Processo",
+  "est": "broto",
+  "plantada": "07/11/2026",
+  "tags": [
+   "método",
+   "rag"
+  ],
+  "liga": [
+   "busca-sozinha",
+   "metodo",
+   "feito-a-mao",
+   "escala",
+   "linha"
+  ],
+  "desc": "o caminho de uma pergunta dentro do RAG",
+  "status": "descreve o RAG como ficou em 08/11/2026; ele mudou entre 07 e 08/11.",
+  "ctx": "As versões do modelo de busca estão em <a class=\"wiki\" data-nota=\"metodo\" href=\"#metodo\">método</a>. O efeito de cada decisão e a comparação com a biblioteca pronta estão em <a class=\"wiki\" data-nota=\"feito-a-mao\" href=\"#feito-a-mao\">feito à mão</a>.",
+  "pergunta": "",
+  "podada": "08/11/2026"
+ },
+ {
+  "id": "conclusao",
+  "rotulo": "Conclusão",
+  "titulo": "Conclusão provisória: em conversa o RAG economiza cota sem perder acerto; em pergunta solta não compensa",
+  "pasta": "Fechamento",
+  "est": "semente",
+  "plantada": "08/11/2026",
+  "tags": [
+   "conclusão",
+   "pendente"
+  ],
+  "liga": [
+   "topo",
+   "metodo",
+   "escala",
+   "fonte",
+   "quando-compensa"
+  ],
+  "desc": "a minha frase, o que os números mostram, as skills e o que falta",
+  "status": "a frase é minha; o texto abaixo dela resume o que os números mostram. Provisória até o teste de dia a dia (1 a 2 semanas).",
+  "ctx": "Os números por trás de cada frase estão em <a class=\"wiki\" data-nota=\"acerto\" href=\"#acerto\">acerto</a>, <a class=\"wiki\" data-nota=\"cota\" href=\"#cota\">cota</a>, <a class=\"wiki\" data-nota=\"fonte\" href=\"#fonte\">fonte sem pedir</a> e <a class=\"wiki\" data-nota=\"escala\" href=\"#escala\">base maior</a>.",
+  "pergunta": "",
+  "podada": "09/11/2026"
+ }
+];
+const EST = { semente: "semente", broto: "broto", madura: "madura" }; const NV = { semente: 1, broto: 2, madura: 3 };
+const mat = (e) => `<span class="mat" data-n="${NV[e]}"><i></i><i></i><i></i></span>${EST[e]}`;
+const porId = Object.fromEntries(NOTAS.map((n) => [n.id, n]));
+const secs = Object.fromEntries([...document.querySelectorAll("main section")].map((s) => [s.id, s]));
+const esc2 = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+let visitados; try { visitados = new Set(JSON.parse(sessionStorage.getItem("visitados-jardim") || "[]")); } catch (e) { visitados = new Set(); }
+const txt = {};
+NOTAS.forEach((n) => { txt[n.id] = (secs[n.id].textContent || "").replace(/\s+/g, " ").trim(); });
+const volta = (id) => NOTAS.filter((n) => n.liga.includes(id));
+
+/* cabeçalho de cada nota: migalha, título, meta e etiquetas */
+NOTAS.forEach((n, idx) => {
+  const s = secs[n.id];
+  s.classList.add("nota");
+  const titulo = s.querySelector("h1, h2");
+  titulo.textContent = n.titulo;
+  titulo.id = "t-" + n.id;
+  const minutos = Math.max(1, Math.round(txt[n.id].split(" ").length / 200));
+  const mig = document.createElement("nav");
+  mig.className = "migalha";
+  mig.innerHTML = n.pasta === "Início" ? `<a href="#topo">Início</a> › <span>${n.rotulo}</span>` : `<a href="#topo">Início</a> › <span>${n.pasta}</span> › <span>${n.rotulo}</span>`;
+  titulo.before(mig);
+  const meta = document.createElement("div");
+  meta.className = "cab-meta";
+  meta.innerHTML = `<span class="estagio">${mat(n.est)}</span><span>nota ${idx + 1} de ${NOTAS.length}</span><span>plantada ${n.plantada}</span><span>podada ${n.podada}</span><span>${minutos} min de leitura</span>`;
+  const tags = document.createElement("div");
+  tags.className = "etiquetas";
+  tags.innerHTML = n.tags.map((t) => `<a href="#${n.id}" data-tag="${t}">${t}</a>`).join("");
+  titulo.after(meta);
+  meta.after(tags);
+  const st = document.createElement("div"); st.className = "status"; st.innerHTML = "<b>Status</b> " + n.status; tags.after(st);
+  let ult = st; if (n.pergunta) { const pg = document.createElement("p"); pg.className = "pergunta"; pg.innerHTML = "<b>Pergunta</b>" + n.pergunta; st.after(pg); ult = pg; }
+  if (n.ctx) { const cx = document.createElement("p"); cx.className = "ctx"; cx.innerHTML = n.ctx; ult.after(cx); }
+  const veja = document.createElement("div");
+  veja.className = "veja";
+  veja.innerHTML = `<h3>Continua em</h3><ul>${n.liga.map((l) => `<li><a class="wiki" data-nota="${l}" href="#${l}">${porId[l].rotulo}</a> · ${porId[l].desc}</li>`).join("")}</ul>`;
+  s.append(veja);
+  s.querySelectorAll(".grafico-bloco h3, .achados h3, #feito-a-mao > h3, #metodo > h3, #conclusao > h3").forEach((h, i) => {
+    h.id = `h-${n.id}-${i}`;
+    h.insertAdjacentHTML("beforeend", `<a class="ancora" href="#${n.id}" data-alvo="${h.id}" aria-label="Ir para este título">#</a>`);
+  });
+});
+
+/* links entre notas dentro do texto da resposta */
+const topo = secs.topo;
+const aviso = topo.querySelector(".lead + .lead");
+if (aviso) aviso.insertAdjacentHTML("afterend", `<p>A comparação está nas <a class="wiki" data-nota="fichas" href="#fichas">fichas dos três jeitos</a>. As medidas estão em <a class="wiki" data-nota="acerto" href="#acerto">acerto</a>, <a class="wiki" data-nota="fonte" href="#fonte">fonte sem pedir</a>, <a class="wiki" data-nota="cota" href="#cota">cota</a> e <a class="wiki" data-nota="tempo-resposta" href="#tempo-resposta">tempo</a>. O que ficou sem medir está na <a class="wiki" data-nota="conclusao" href="#conclusao">conclusão</a>, e quem respondeu e quem julgou, em <a class="wiki" data-nota="metodo" href="#metodo">método</a>. Por que o RAG foi escrito à mão, e o que isso mudou, está em <a class="wiki" data-nota="feito-a-mao" href="#feito-a-mao">feito à mão</a>.</p>`);
+
+/* explorador em árvore */
+const pastas = [...new Set(NOTAS.map((n) => n.pasta))];
+document.getElementById("arvore").innerHTML = pastas.map((p) =>
+  `<li><button class="pasta-btn" type="button" aria-expanded="true"><span class="seta">▶</span>${p}</button><ul>` +
+  NOTAS.filter((n) => n.pasta === p).map((n) => `<li><a href="#${n.id}" data-nota-nav="${n.id}">${n.rotulo}</a></li>`).join("") + `</ul></li>`).join("");
+document.getElementById("arvore").addEventListener("click", (e) => {
+  const b = e.target.closest(".pasta-btn");
+  if (b) b.setAttribute("aria-expanded", String(b.getAttribute("aria-expanded") !== "true"));
+});
+
+/* grafo: layout por forças, calculado uma vez */
+const W = 300, H = 300, pos = {};
+NOTAS.forEach((n, i) => { const a = (i / NOTAS.length) * Math.PI * 2; pos[n.id] = { x: W / 2 + Math.cos(a) * 70, y: H / 2 + Math.sin(a) * 60, vx: 0, vy: 0 }; });
+const arestas = [];
+NOTAS.forEach((n) => n.liga.forEach((l) => { if (!arestas.some((e) => (e[0] === l && e[1] === n.id))) arestas.push([n.id, l]); }));
+for (let it = 0; it < 400; it++) {
+  NOTAS.forEach((a) => NOTAS.forEach((b) => {
+    if (a === b) return;
+    const pa = pos[a.id], pb = pos[b.id];
+    let dx = pa.x - pb.x, dy = pa.y - pb.y; const d2 = Math.max(dx * dx + dy * dy, 25), d = Math.sqrt(d2);
+    const f = 5200 / d2; pa.vx += (dx / d) * f; pa.vy += (dy / d) * f;
+  }));
+  arestas.forEach(([a, b]) => {
+    const pa = pos[a], pb = pos[b]; const dx = pb.x - pa.x, dy = pb.y - pa.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const f = (d - 100) * 0.02; pa.vx += (dx / d) * f; pa.vy += (dy / d) * f; pb.vx -= (dx / d) * f; pb.vy -= (dy / d) * f;
+  });
+  NOTAS.forEach((n) => { const p = pos[n.id]; p.vx += (W / 2 - p.x) * 0.01; p.vy += (H / 2 - p.y) * 0.01; p.x += p.vx * 0.5; p.y += p.vy * 0.5; p.vx *= 0.6; p.vy *= 0.6; p.x = Math.max(16, Math.min(W - 16, p.x)); p.y = Math.max(16, Math.min(H - 16, p.y)); });
+}
+function desenharGrafo(atual) {
+  const svg = document.getElementById("graf-jardim");
+  const ligadas = new Set([atual, ...porId[atual].liga, ...volta(atual).map((n) => n.id)]);
+  svg.innerHTML = arestas.map(([a, b]) => `<line class="${a === atual || b === atual ? "forte" : ""}" x1="${pos[a].x}" y1="${pos[a].y}" x2="${pos[b].x}" y2="${pos[b].y}"/>`).join("") +
+    NOTAS.map((n) => `<circle class="${n.id === atual ? "atual" : visitados.has(n.id) ? "visitado" : ""}" cx="${pos[n.id].x}" cy="${pos[n.id].y}" r="${n.id === atual ? 8 : 6}" data-nota="${n.id}" tabindex="0"><title>${n.titulo}</title></circle>`).join("") +
+    NOTAS.filter((n) => n.id === atual).map((n) => `<text x="${pos[n.id].x}" y="${pos[n.id].y - 11}" text-anchor="middle">${n.rotulo.length > 16 ? n.rotulo.slice(0, 15) + "…" : n.rotulo}</text>`).join("");
+}
+document.getElementById("graf-jardim").addEventListener("click", (e) => { const c = e.target.closest("circle"); if (c) location.hash = "#" + c.getAttribute("data-nota"); });
+document.getElementById("graf-jardim").addEventListener("keydown", (e) => { if (e.key === "Enter") { const c = e.target.closest("circle"); if (c) location.hash = "#" + c.getAttribute("data-nota"); } });
+
+/* mostrar uma nota */
+let atual = null;
+function mostrar(id) {
+  if (!porId[id]) id = "topo";
+  atual = id; visitados.add(id);
+  try { sessionStorage.setItem("visitados-jardim", JSON.stringify([...visitados])); } catch (e) {}
+  NOTAS.forEach((n) => secs[n.id].classList.toggle("ativa", n.id === id));
+  document.querySelectorAll("#arvore a").forEach((a) => a.classList.toggle("ativo", a.getAttribute("data-nota-nav") === id));
+  document.title = porId[id].titulo + " · O RAG vale a pena?";
+  desenharGrafo(id);
+  const heads = [...secs[id].querySelectorAll(".grafico-bloco h3, .achados h3, #feito-a-mao > h3, #metodo > h3, #conclusao > h3")];
+  document.getElementById("toc-box").style.display = heads.length ? "" : "none";
+  document.getElementById("toc").innerHTML = heads.map((h) => `<li><a href="#${id}" data-alvo="${h.id}">${esc2(h.childNodes[0].textContent)}</a></li>`).join("");
+  const volts = volta(id);
+  document.getElementById("back").innerHTML = volts.length ? volts.map((n) => `<li><a data-nota="${n.id}" href="#${n.id}">${n.rotulo}</a></li>`).join("") : `<li class="vazio-pl">Nenhuma nota aponta para esta.</li>`;
+  scrollTo(0, 0);
+}
+function rota() { const h = location.hash.replace(/^#\/?/, ""); mostrar(porId[h] ? h : "topo"); }
+addEventListener("hashchange", rota);
+const exp = document.getElementById("explorador"), tog = document.getElementById("expl-toggle");
+tog.addEventListener("click", () => { const a = exp.classList.toggle("aberto"); tog.setAttribute("aria-expanded", String(a)); });
+addEventListener("hashchange", () => { exp.classList.remove("aberto"); tog.setAttribute("aria-expanded", "false"); });
+rota();
+document.addEventListener("click", (e) => {
+  const al = e.target.closest("[data-alvo]");
+  if (al) { e.preventDefault(); const h = document.getElementById(al.getAttribute("data-alvo")); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  const tg = e.target.closest("[data-tag]");
+  if (tg) { e.preventDefault(); abrirBusca("#" + tg.getAttribute("data-tag")); }
+});
+
+/* pré-visualização ao passar o mouse */
+const pop = document.getElementById("pop");
+document.addEventListener("mouseover", (e) => {
+  const a = e.target.closest("a.wiki, #back a");
+  if (!a) return;
+  const n = porId[a.getAttribute("data-nota")]; if (!n) return;
+  const p = secs[n.id].querySelector("p");
+  pop.innerHTML = `<h4>${n.titulo}</h4><span class="estagio">${mat(n.est)}</span><p>${esc2((p ? p.textContent : txt[n.id]).replace(/\s+/g, " ").slice(0, 260))}</p>`;
+  const r = a.getBoundingClientRect();
+  pop.style.display = "block";
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - 360)) + "px";
+  pop.style.top = (r.bottom + 270 > innerHeight ? Math.max(8, r.top - pop.offsetHeight - 8) : r.bottom + 8) + "px";
+});
+document.addEventListener("mouseout", (e) => { if (e.target.closest("a.wiki, #back a")) pop.style.display = "none"; });
+
+/* busca */
+const modal = document.getElementById("modal-busca"), campo = document.getElementById("campo-busca"), lista = document.getElementById("res-busca");
+let sel = 0, achados = [];
+function abrirBusca(q) { modal.classList.add("aberto"); campo.value = q || ""; campo.focus(); buscar(); }
+function fecharBusca() { modal.classList.remove("aberto"); }
+function buscar() {
+  const q = campo.value.trim().toLowerCase().replace(/^#/, "");
+  achados = NOTAS.map((n) => {
+    const t = txt[n.id].toLowerCase();
+    const noTit = n.titulo.toLowerCase().includes(q) || n.tags.some((g) => g.includes(q));
+    const cont = q ? t.split(q).length - 1 : 0;
+    return { n, pts: (noTit ? 100 : 0) + cont, pos: t.indexOf(q) };
+  }).filter((r) => !q || r.pts > 0).sort((a, b) => b.pts - a.pts);
+  sel = 0;
+  lista.innerHTML = achados.map((r, i) => {
+    const t = txt[r.n.id];
+    let trecho = t.slice(0, 120);
+    if (q && r.pos >= 0) { const ini = Math.max(0, r.pos - 50); trecho = (ini ? "…" : "") + t.slice(ini, r.pos + 90); }
+    trecho = esc2(trecho);
+    if (q) trecho = trecho.replace(new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig"), "<mark>$1</mark>");
+    return `<li data-i="${i}" class="${i === 0 ? "sel" : ""}"><b>${r.n.titulo}</b><span>${trecho}</span></li>`;
+  }).join("") || `<li><span>Nada encontrado.</span></li>`;
+}
+function irSel() { const r = achados[sel]; if (r) { location.hash = "#" + r.n.id; fecharBusca(); } }
+campo.addEventListener("input", buscar);
+campo.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") fecharBusca();
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, Math.min(achados.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1))); [...lista.children].forEach((li, i) => li.classList.toggle("sel", i === sel)); }
+  else if (e.key === "Enter") irSel();
+});
+lista.addEventListener("click", (e) => { const li = e.target.closest("li[data-i]"); if (li) { sel = +li.getAttribute("data-i"); irSel(); } });
+modal.addEventListener("click", (e) => { if (e.target === modal) fecharBusca(); });
+document.getElementById("abrir-busca").addEventListener("click", () => abrirBusca(""));
+addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); abrirBusca(""); }
+  else if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); abrirBusca(""); }
+});
+
+
+document.querySelectorAll(".indice a.wiki").forEach((a) => { const n = porId[a.getAttribute("data-nota")]; if (n) a.insertAdjacentHTML("afterend", ' <span class="estagio-mini">' + mat(n.est) + "</span>"); });
+
+/* nota "feito à mão": feito à mão contra biblioteca pronta, de cada 100 notas certas, quantas a busca achou */
+function barrasGrupo(grupos, serieA, serieB, rotulo) {
+  const N = EST_(), W = N ? 380 : 720, H = N ? 300 : 330, e = N ? 46 : 54, d = N ? 14 : 20, t = 30, b = N ? 78 : 66, max = 100;
+  const py = (v) => t + (1 - v / max) * (H - t - b);
+  const gw = (W - e - d) / grupos.length, bw = N ? 28 : 54;
+  let s = "";
+  for (let v = 0; v <= max; v += 25) s += `<line class="grade" x1="${e}" x2="${W - d}" y1="${py(v)}" y2="${py(v)}"/><text class="ts" x="${e - 8}" y="${py(v) + 4}" text-anchor="end">${v}%</text>`;
+  grupos.forEach((g, i) => {
+    const cx = e + gw * i + gw / 2;
+    [[serieA, "hoje", -bw - 3, "Feito à mão"], [serieB, "bib", 3, "Biblioteca pronta"]].forEach(([ser, c, off, nome]) => {
+      const v = ser[i];
+      s += `<rect class="b-${c}" x="${cx + off}" y="${py(v)}" width="${bw}" height="${py(0) - py(v)}" tabindex="0" data-dica="${esc(nome + ", " + g + ": " + v + " de cada 100 notas certas")}"/><text class="v" x="${cx + off + bw / 2}" y="${py(v) - 7}" text-anchor="middle">${v}%</text>`;
+    });
+    const linhas = []; let atual = "";
+    g.split(" ").forEach((p) => { if (atual && (atual + " " + p).length > (N ? 13 : 24)) { linhas.push(atual); atual = p; } else atual = (atual ? atual + " " : "") + p; });
+    linhas.push(atual);
+    linhas.forEach((ln, k) => { s += `<text class="t" x="${cx}" y="${H - b + 24 + k * 16}" text-anchor="middle">${esc(ln)}</text>`; });
+  });
+  return svg(W, H, s, rotulo);
+}
+$("#graf-mao").innerHTML = barrasGrupo(["Perguntas comuns", "Palavras diferentes", "“Já tem algo sobre X?”"], [89, 79, 83], [90, 57, 78], "Busca feita à mão contra biblioteca pronta: de cada 100 notas certas, quantas a busca achou");
+})();
+</script>
+</body>
+</html>
